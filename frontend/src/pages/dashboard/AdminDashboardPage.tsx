@@ -1,19 +1,29 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { dashboardApi } from '@/services/dashboardApi';
+import { residentApi } from '@/services/societyApi';
 import type { AdminDashboardData } from '@/types/dashboard';
+import type { ResidentSummaryResponse } from '@/types/society';
 import { TopBar } from '@/components/layout/TopBar';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function AdminDashboardPage() {
   const [data, setData] = useState<AdminDashboardData | null>(null);
+  const [pendingResidents, setPendingResidents] = useState<ResidentSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    dashboardApi
-      .getAdminDashboard()
-      .then((res) => setData(res.data))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      dashboardApi.getAdminDashboard(),
+      residentApi.getPendingApprovals(),
+    ]).then(([dashRes, pendRes]) => {
+      if (dashRes.status === 'fulfilled') {
+        setData(dashRes.value.data);
+      }
+      if (pendRes.status === 'fulfilled') {
+        setPendingResidents(pendRes.value || []);
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingSpinner />;
@@ -28,6 +38,34 @@ export function AdminDashboardPage() {
   return (
     <section className="space-y-6">
       <TopBar title="Society Admin Overview" subtitle="Real-time society governance metrics, financial trends, visitor traffic, and operational status." />
+
+      {/* Pending Resident Membership Alert Banner */}
+      {pendingResidents.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-slate-950 p-5 shadow-xl animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-2xl border border-amber-500/40 animate-pulse">
+              ⏳
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40">
+                  {pendingResidents.length} Action Required
+                </span>
+                <span className="text-xs text-white font-bold">New Resident Registration</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                <span className="font-semibold text-white">{pendingResidents[0].fullName}</span> (@{pendingResidents[0].username}) applied for Flat {pendingResidents[0].flatNumber}, {pendingResidents[0].buildingName}.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/residents?tab=PENDING"
+            className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 px-5 py-2.5 text-xs font-black text-slate-950 transition shadow-lg shadow-amber-500/25 whitespace-nowrap active:scale-95"
+          >
+            Review & Approve Application →
+          </Link>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -122,7 +122,7 @@ function AppLayoutContent() {
             {/* Authenticated Actions */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900 px-3.5 py-2">
-                <span className="text-xs text-slate-400">🔒 Verified Department:</span>
+                <span className="text-xs text-slate-400">Department:</span>
                 <span className="text-xs font-bold text-cyan-300">
                   {roleLabels[role]}
                 </span>
@@ -164,10 +164,10 @@ function AppLayoutContent() {
           <div className="w-full max-w-md rounded-[2.5rem] border border-cyan-500/40 bg-slate-900 p-8 shadow-2xl space-y-6 text-slate-100">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
-                <span className="text-3xl p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">🔐</span>
+                <span className="text-2xl p-2 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">🔑</span>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Security Verification</h3>
-                  <p className="text-xs text-slate-400">Department Switch Authentication</p>
+                  <h3 className="text-base font-bold text-white">Switch Department</h3>
+                  <p className="text-xs text-slate-400">Select department and sign in</p>
                 </div>
               </div>
               <button
@@ -178,8 +178,8 @@ function AppLayoutContent() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-2xl border border-white/5">
-              ⚠️ Role-Based Security: You must provide valid login credentials (username and password) to switch to another role or department.
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-white/5">
+              Enter your department credentials to switch accounts.
             </p>
 
             {switchError && (

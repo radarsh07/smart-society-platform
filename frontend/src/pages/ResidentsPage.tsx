@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { buildingApi, residentApi, societyApi } from '@/services';
 import type {
   BuildingResponse,
@@ -28,7 +28,9 @@ export function ResidentsPage() {
   const [buildings, setBuildings] = useState<BuildingResponse[]>([]);
   const [selectedBuildingName, setSelectedBuildingName] = useState<string>('ALL');
 
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>('ALL');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'PENDING' ? 'PENDING' : 'ALL';
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>(initialTab);
   const [pendingApprovals, setPendingApprovals] = useState<ResidentSummaryResponse[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -202,6 +204,35 @@ export function ResidentsPage() {
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Pending Resident Membership Alert Banner */}
+      {isAdmin && pendingApprovals.length > 0 && activeTab !== 'PENDING' && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-slate-950 p-5 shadow-xl animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-2xl border border-amber-500/40 animate-pulse">
+              ⏳
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40">
+                  {pendingApprovals.length} Action Required
+                </span>
+                <span className="text-xs text-white font-bold">New Resident Registration</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                <span className="font-semibold text-white">{pendingApprovals[0].fullName}</span> (@{pendingApprovals[0].username}) applied for Flat {pendingApprovals[0].flatNumber}, {pendingApprovals[0].buildingName}.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('PENDING')}
+            className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 px-5 py-2.5 text-xs font-black text-slate-950 transition shadow-lg shadow-amber-500/25 whitespace-nowrap active:scale-95"
+          >
+            Review & Approve Application →
+          </button>
         </div>
       )}
 
