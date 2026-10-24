@@ -32,7 +32,10 @@ public class DataInitializer {
       com.ssasm.repository.community.ComplaintCategoryRepository complaintCategoryRepository,
       com.ssasm.repository.community.FacilityRepository facilityRepository,
       com.ssasm.repository.community.ParkingSlotRepository parkingSlotRepository,
-      com.ssasm.repository.society.SocietyRepository societyRepository) {
+      com.ssasm.repository.society.SocietyRepository societyRepository,
+      com.ssasm.repository.society.BuildingRepository buildingRepository,
+      com.ssasm.repository.society.FlatRepository flatRepository,
+      com.ssasm.repository.society.ResidentRepository residentRepository) {
     return args -> {
       // 1. Ensure core roles exist
       Role adminRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_ADMIN, "Society Admin Authority");
@@ -40,16 +43,72 @@ public class DataInitializer {
       Role guardRole = getOrCreateRole(roleRepository, RoleName.SECURITY_GUARD, "Gate Security Guard Account");
       Role staffRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_STAFF, "Society Maintenance Staff Account");
 
-      // 2. Ensure official department login accounts exist (Staff, Guard, Admin)
+      // 2. Ensure official department login accounts exist (Staff, Guard, Admin, Resident)
       getOrCreateUser(userRepository, passwordEncoder, "admin", "admin@society.local", "+91 98765 00001", "Society Administrator", adminRole, "admin123");
       getOrCreateUser(userRepository, passwordEncoder, "guard", "guard@society.local", "+91 98765 00003", "Gate Security Guard", guardRole, "guard123");
       getOrCreateUser(userRepository, passwordEncoder, "staff", "staff@society.local", "+91 98765 00004", "Maintenance Staff", staffRole, "staff123");
-      
-      // Ensure abhishek resident account has known password abhishek123
-      userRepository.findByUsernameIgnoreCase("abhishek").ifPresent(user -> {
-        user.setPasswordHash(passwordEncoder.encode("abhishek123"));
-        userRepository.save(user);
+      User abhishekUser = getOrCreateUser(userRepository, passwordEncoder, "abhishek", "abhishek@society.local", "+919989786536", "Abhishek", residentRole, "abhishek123");
+
+      // Ensure abhishek resident account has known password abhishek123 if previously existed with another password
+      if (!passwordEncoder.matches("abhishek123", abhishekUser.getPasswordHash())) {
+        abhishekUser.setPasswordHash(passwordEncoder.encode("abhishek123"));
+        abhishekUser = userRepository.save(abhishekUser);
+      }
+
+      // Ensure default Society, Building, Flat, and Resident exist
+      com.ssasm.entity.society.Society defaultSociety = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElseGet(() -> {
+        com.ssasm.entity.society.Society s = new com.ssasm.entity.society.Society();
+        s.setSocietyName("SHIV ELITE TOWNSHIP");
+        s.setRegistrationNumber("REG-SOC-2026-001");
+        s.setAddressLine1("Sector 42, Golf Course Road");
+        s.setCity("Gurugram");
+        s.setState("Haryana");
+        s.setPincode("122002");
+        s.setContactPhone("+91 98765 00001");
+        s.setCreatedBy("SYSTEM");
+        s.setUpdatedBy("SYSTEM");
+        return societyRepository.save(s);
       });
+
+      com.ssasm.entity.society.Building defaultBuilding = buildingRepository.findAll().stream().filter(b -> !b.isDeleted()).findFirst().orElseGet(() -> {
+        com.ssasm.entity.society.Building b = new com.ssasm.entity.society.Building();
+        b.setBuildingName("Lavender");
+        b.setBuildingCode("LAV");
+        b.setTotalFloors(10);
+        b.setSociety(defaultSociety);
+        b.setCreatedBy("SYSTEM");
+        b.setUpdatedBy("SYSTEM");
+        return buildingRepository.save(b);
+      });
+
+      com.ssasm.entity.society.Flat defaultFlat = flatRepository.findAll().stream().filter(f -> !f.isDeleted()).findFirst().orElseGet(() -> {
+        com.ssasm.entity.society.Flat f = new com.ssasm.entity.society.Flat();
+        f.setFlatNumber("101");
+        f.setFlatType("3BHK");
+        f.setFloorNumber(1);
+        f.setCarpetArea(1450.0);
+        f.setStatus("OCCUPIED");
+        f.setBuilding(defaultBuilding);
+        f.setCreatedBy("SYSTEM");
+        f.setUpdatedBy("SYSTEM");
+        return flatRepository.save(f);
+      });
+
+      final User finalAbhishekUser = abhishekUser;
+      final com.ssasm.entity.society.Flat finalDefaultFlat = defaultFlat;
+      if (residentRepository.count() == 0) {
+        com.ssasm.entity.society.Resident resident = new com.ssasm.entity.society.Resident();
+        resident.setUser(finalAbhishekUser);
+        resident.setFlat(finalDefaultFlat);
+        resident.setFullName("Abhishek");
+        resident.setEmail("abhishek@society.local");
+        resident.setPhoneNumber("+919989786536");
+        resident.setOccupancyType("OWNER");
+        resident.setResidentStatus("ACTIVE");
+        resident.setCreatedBy("SYSTEM");
+        resident.setUpdatedBy("SYSTEM");
+        residentRepository.save(resident);
+      }
 
       // 3. Ensure Staff entity exists for staff user
       userRepository.findByUsernameIgnoreCase("staff").ifPresent(staffUser -> {
