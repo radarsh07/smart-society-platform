@@ -20,7 +20,6 @@ public class BuildingRequest {
   @Size(max = 120)
   private String buildingName;
 
-  @NotBlank
   @Size(max = 30)
   private String buildingCode;
 

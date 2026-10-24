@@ -28,7 +28,7 @@ export interface SocietyResponse {
 export interface BuildingRequest {
   societyId: number;
   buildingName: string;
-  buildingCode: string;
+  buildingCode?: string;
   totalFloors: number;
 }
 

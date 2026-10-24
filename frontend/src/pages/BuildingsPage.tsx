@@ -52,11 +52,11 @@ export function BuildingsPage() {
       return;
     }
 
-    if (!form.buildingName.trim() || !form.buildingCode.trim()) {
+    if (!form.buildingName.trim()) {
       pushToast({
         type: 'error',
         title: 'Validation Error',
-        description: 'Building name and building code are required.'
+        description: 'Building name is required.'
       });
       return;
     }
@@ -66,15 +66,15 @@ export function BuildingsPage() {
       const payload: BuildingRequest = {
         societyId: society.id,
         buildingName: form.buildingName.trim(),
-        buildingCode: form.buildingCode.trim().toUpperCase(),
+        buildingCode: form.buildingCode?.trim() ? form.buildingCode.trim().toUpperCase() : undefined,
         totalFloors: Number(form.totalFloors) || 1,
       };
 
-      await buildingApi.createBuilding(payload);
+      const created = await buildingApi.createBuilding(payload);
       pushToast({
         type: 'success',
         title: 'Building saved successfully',
-        description: `${payload.buildingName} (${payload.buildingCode}) added to ${society.societyName}`
+        description: `${created.buildingName} (Code: ${created.buildingCode}) added to ${society.societyName}`
       });
 
       setForm({ ...emptyForm, societyId: society.id });
@@ -171,13 +171,17 @@ export function BuildingsPage() {
         </label>
 
         <label className="flex flex-col gap-2 text-sm text-slate-300 md:col-span-1">
-          <span>Building Code *</span>
+          <div className="flex items-center justify-between">
+            <span>Building Code</span>
+            <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+              🎲 Auto-Generated Unique
+            </span>
+          </div>
           <input
-            required
-            className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-400 transition uppercase font-mono"
-            placeholder="e.g. TW-A or BLK-1"
-            value={form.buildingCode}
-            onChange={event => setForm(current => ({ ...current, buildingCode: event.target.value }))}
+            disabled
+            className="rounded-2xl border border-white/5 bg-slate-900/50 px-4 py-3 text-cyan-300 outline-none placeholder:text-slate-500 cursor-not-allowed font-mono text-sm"
+            placeholder="⚡ Generated on Save (e.g. BLD-4821)"
+            value={form.buildingCode || ''}
           />
         </label>
 

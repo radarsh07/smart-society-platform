@@ -46,12 +46,19 @@ public class BuildingServiceImpl implements BuildingService {
   @Override
   public BuildingResponse createBuilding(BuildingRequest request, String username, String ipAddress) {
     Society society = findSociety(request.getSocietyId());
-    validateUniqueness(request.getSocietyId(), request.getBuildingCode(), null);
+
+    String code = request.getBuildingCode();
+    if (code == null || code.trim().isEmpty()) {
+      code = generateUniqueBuildingCode(request.getSocietyId(), request.getBuildingName());
+    } else {
+      code = code.trim().toUpperCase();
+      validateUniqueness(request.getSocietyId(), code, null);
+    }
 
     Building building = new Building();
     building.setSociety(society);
     building.setBuildingName(request.getBuildingName().trim());
-    building.setBuildingCode(request.getBuildingCode().trim().toUpperCase());
+    building.setBuildingCode(code);
     building.setTotalFloors(request.getTotalFloors());
     building.setCreatedBy(username);
     building.setUpdatedBy(username);
@@ -65,17 +72,41 @@ public class BuildingServiceImpl implements BuildingService {
   public BuildingResponse updateBuilding(Long buildingId, BuildingRequest request, String username, String ipAddress) {
     Building building = getBuildingEntity(buildingId);
     Society society = findSociety(request.getSocietyId());
-    validateUniqueness(request.getSocietyId(), request.getBuildingCode(), buildingId);
+
+    String code = request.getBuildingCode();
+    if (code == null || code.trim().isEmpty()) {
+      code = building.getBuildingCode();
+    } else {
+      code = code.trim().toUpperCase();
+      validateUniqueness(request.getSocietyId(), code, buildingId);
+    }
 
     building.setSociety(society);
     building.setBuildingName(request.getBuildingName().trim());
-    building.setBuildingCode(request.getBuildingCode().trim().toUpperCase());
+    building.setBuildingCode(code);
     building.setTotalFloors(request.getTotalFloors());
     building.setUpdatedBy(username);
     Building saved = buildingRepository.save(building);
 
     domainAuditService.log(buildEvent(username, ipAddress, "UPDATE", "Building", saved.getId().toString(), "SUCCESS", "Building updated"));
     return buildingMapper.toResponse(saved);
+  }
+
+  private String generateUniqueBuildingCode(Long societyId, String buildingName) {
+    String prefix = "BLD";
+    if (buildingName != null && !buildingName.trim().isEmpty()) {
+      String clean = buildingName.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+      if (clean.length() >= 2) {
+        prefix = clean.substring(0, Math.min(3, clean.length()));
+      }
+    }
+    java.security.SecureRandom random = new java.security.SecureRandom();
+    String code;
+    do {
+      int randomNum = 1000 + random.nextInt(9000);
+      code = prefix + "-" + randomNum;
+    } while (buildingRepository.existsBySocietyIdAndBuildingCodeIgnoreCaseAndDeletedFalse(societyId, code));
+    return code;
   }
 
   @Override
