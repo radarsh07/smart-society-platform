@@ -15,9 +15,31 @@ body,
   min-height: 100%;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   background:
     radial-gradient(circle at top, rgba(29, 78, 216, 0.18), transparent 35%),
     linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  overscroll-behavior-y: none;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Smooth touch momentum scrolling on mobile */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+

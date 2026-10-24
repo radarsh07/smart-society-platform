@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { SidebarNav } from '@/components/layout/SidebarNav';
+import { MobileHeader } from '@/components/layout/MobileHeader';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { MobileDrawer } from '@/components/layout/MobileDrawer';
+import { EmergencySosModal } from '@/components/ui/EmergencySosModal';
 import { ToastStack } from '@/components/ui/ToastStack';
 import { ToastProvider, useToast } from '@/hooks/useToast';
 import { useRole, UserRole } from '@/context/RoleContext';
@@ -10,6 +14,8 @@ function AppLayoutContent() {
   const navigate = useNavigate();
   const { pushToast } = useToast();
 
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [switchTargetRole, setSwitchTargetRole] = useState<UserRole>('ADMIN');
   const [switchUsername, setSwitchUsername] = useState('');
@@ -74,12 +80,33 @@ function AppLayoutContent() {
     <div className={`min-h-screen bg-gradient-to-b ${theme.bgGradient} text-slate-100 transition-colors duration-500`}>
       <ToastStack />
 
+      {/* Mobile Top App Bar */}
+      <MobileHeader
+        onOpenMenu={() => setIsMobileDrawerOpen(true)}
+        onOpenSos={() => setIsSosModalOpen(true)}
+        onOpenSwitchRole={() => handleOpenSwitchModal()}
+      />
+
+      {/* Mobile Slide-Over Navigation Drawer */}
+      <MobileDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        onOpenSwitchRole={() => handleOpenSwitchModal()}
+        onOpenSos={() => setIsSosModalOpen(true)}
+      />
+
+      {/* Mobile Emergency SOS Hotline Modal */}
+      <EmergencySosModal
+        isOpen={isSosModalOpen}
+        onClose={() => setIsSosModalOpen(false)}
+      />
+
       <div className="mx-auto flex min-h-screen w-full max-w-[1700px] flex-col lg:flex-row">
         <SidebarNav />
 
-        <main className="flex-1 px-5 py-6 lg:px-8 lg:py-8 space-y-6">
-          {/* Secured Top Bar */}
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-xl shadow-xl">
+        <main className="flex-1 px-3.5 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 space-y-5 pb-28 lg:pb-8">
+          {/* Secured Desktop Top Bar (Hidden on Mobile) */}
+          <header className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-xl shadow-xl">
             <div className="flex items-center gap-3">
               <span className={`rounded-2xl border px-3.5 py-1.5 text-xs font-black tracking-wider ${theme.accentBorder} ${theme.accentBg} ${theme.accentText}`}>
                 {theme.badge}
@@ -92,7 +119,7 @@ function AppLayoutContent() {
               </div>
             </div>
 
-            {/* Authenticated Actions (No unrestricted role dropdown) */}
+            {/* Authenticated Actions */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900 px-3.5 py-2">
                 <span className="text-xs text-slate-400">🔒 Verified Department:</span>
@@ -127,6 +154,9 @@ function AppLayoutContent() {
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <MobileBottomNav onOpenMenu={() => setIsMobileDrawerOpen(true)} />
 
       {/* Security Verification Modal for Role Switching */}
       {isSwitchModalOpen && (

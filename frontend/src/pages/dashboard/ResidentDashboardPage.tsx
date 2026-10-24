@@ -67,6 +67,27 @@ export function ResidentDashboardPage() {
     setTimeout(() => setCopiedToken(false), 3000);
   };
 
+  const handleSharePass = async () => {
+    const shareText = `🏢 Society Gate Entry Pass\nResident: ${residentName} (Flat ${flatNumber}, ${buildingName})\nPass Token: ${gatePassToken}\nPlease show this token at Security Gate #1 for fast entry clearance.`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `Gate Entry Pass - Flat ${flatNumber}`,
+          text: shareText,
+        });
+        pushToast({
+          type: 'success',
+          title: 'Gate Pass Shared 📲',
+          description: 'Pass details sent via mobile share.',
+        });
+        return;
+      } catch {
+        // Fallback to clipboard if share cancelled
+      }
+    }
+    handleCopyToken();
+  };
+
   const handleApproveVisitor = async (invitationId: number, visitorName: string) => {
     setActionLoadingId(invitationId);
     try {
@@ -182,19 +203,105 @@ export function ResidentDashboardPage() {
 
             <div className="flex flex-col sm:flex-row gap-2.5">
               <button
-                onClick={handleCopyToken}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                type="button"
+                onClick={handleSharePass}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
               >
-                <span>{copiedToken ? '✓ Copied' : '📋 Copy Token'}</span>
+                <span>📲</span>
+                <span>Share Pass</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyToken}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <span>{copiedToken ? '✓ Copied' : '📋 Copy'}</span>
               </button>
               <Link
                 to="/visitors/entry"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-bold text-xs transition text-center flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-bold text-xs transition text-center flex items-center justify-center gap-1.5 active:scale-95"
               >
-                <span>🚗 Test Clearance</span>
+                <span>🚗 Test</span>
               </Link>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* MOBILE QUICK ACTION SHORTCUTS (Visible primarily on mobile & tablet) */}
+      <div className="lg:hidden space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Resident Quick Actions
+          </span>
+          <span className="text-[10px] text-emerald-400 font-semibold">1-Tap Shortcuts</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          <Link
+            to="/visitors/entry"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xl mb-1.5">
+              🎟️
+            </span>
+            <span className="text-xs font-bold text-white">Invite Guest</span>
+            <span className="text-[10px] text-slate-400">Fast Pass</span>
+          </Link>
+
+          <Link
+            to="/billing"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-xl mb-1.5">
+              💳
+            </span>
+            <span className="text-xs font-bold text-white">Pay Dues</span>
+            <span className="text-[10px] text-slate-400">Bills & UPI</span>
+          </Link>
+
+          <Link
+            to="/complaints"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/15 border border-rose-500/30 text-xl mb-1.5">
+              🎫
+            </span>
+            <span className="text-xs font-bold text-white">Raise Issue</span>
+            <span className="text-[10px] text-slate-400">Complaints</span>
+          </Link>
+
+          <Link
+            to="/parcels"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-xl mb-1.5">
+              📦
+            </span>
+            <span className="text-xs font-bold text-white">Parcels</span>
+            <span className="text-[10px] text-slate-400">Gate Delivery</span>
+          </Link>
+
+          <Link
+            to="/facilities"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-xl mb-1.5">
+              🏊
+            </span>
+            <span className="text-xs font-bold text-white">Clubhouse</span>
+            <span className="text-[10px] text-slate-400">Amenities</span>
+          </Link>
+
+          <Link
+            to="/services"
+            className="flex flex-col items-center justify-center p-3 rounded-2xl border border-white/10 bg-slate-900/70 hover:bg-slate-900 text-center active:scale-95 transition shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/15 border border-teal-500/30 text-xl mb-1.5">
+              ⚡
+            </span>
+            <span className="text-xs font-bold text-white">Services</span>
+            <span className="text-[10px] text-slate-400">Electrician/Maid</span>
+          </Link>
         </div>
       </div>
 

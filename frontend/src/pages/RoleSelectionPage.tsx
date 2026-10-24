@@ -93,27 +93,71 @@ export function RoleSelectionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(120,119,198,0.15),_transparent_50%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)] text-slate-100 flex flex-col justify-between p-6 lg:p-12">
-      <div className="max-w-4xl mx-auto w-full space-y-10">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(120,119,198,0.15),_transparent_50%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)] text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-12">
+      <div className="max-w-4xl mx-auto w-full space-y-6 sm:space-y-10">
         
         {/* Main Header Heading */}
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-cyan-300">
-            <span>🛡️ SECURE SMART APARTMENT & SOCIETY MANAGEMENT PLATFORM</span>
+        <div className="text-center space-y-3 sm:space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-cyan-300">
+            <span>🛡️ SMART SOCIETY PLATFORM</span>
           </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
-            Secure Smart Apartment & Society Management Platform
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white tracking-tight">
+            Secure Smart Apartment Platform
           </h1>
-          <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
             Role-Based Access Control (RBAC) Authentication Portal. Authenticate with valid system credentials to access role-specific dashboards.
           </p>
         </div>
 
         {/* Central Authentication Card */}
-        <div className="grid md:grid-cols-12 gap-8 items-start">
+        {/* Central Authentication Layout */}
+        <div className="grid md:grid-cols-12 gap-6 lg:gap-8 items-start">
           
-          {/* Left / Top: Account Credential Presets Selector */}
-          <div className="md:col-span-5 space-y-4">
+          {/* Mobile Quick Role Selector Chips (Visible only on mobile screens < md) */}
+          <div className="md:hidden space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Quick Role Preset
+              </span>
+              <span className="text-[10px] text-cyan-400">Tap to auto-fill</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {accountPresets.map((preset) => {
+                const isSelected = preset.isResidentCard
+                  ? selectedRole === 'RESIDENT' && username !== 'admin' && username !== 'guard' && username !== 'staff'
+                  : username === preset.username && password === preset.pass;
+                return (
+                  <button
+                    key={preset.role}
+                    type="button"
+                    onClick={() => {
+                      if (preset.isResidentCard) {
+                        setUsername('');
+                        setPassword('');
+                        setSelectedRole('RESIDENT');
+                        setErrorMessage('');
+                      } else {
+                        fillPresetCredentials(preset.username, preset.pass, preset.role);
+                      }
+                    }}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${
+                      isSelected
+                        ? preset.isResidentCard
+                          ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 font-bold shadow-sm'
+                          : 'border-cyan-400 bg-cyan-500/20 text-cyan-300 font-bold shadow-sm'
+                        : 'border-white/10 bg-slate-900/60 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-lg">{preset.icon}</span>
+                    <span className="text-[10px] mt-0.5 truncate w-full">{preset.role}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Left / Desktop: Account Credential Presets Selector (Hidden on mobile < md) */}
+          <div className="hidden md:block md:col-span-5 space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
               Select Account Role Credential
             </h2>
@@ -196,13 +240,13 @@ export function RoleSelectionPage() {
 
           {/* Right / Main: Login Form */}
           <div className="md:col-span-7">
-            <div className="rounded-[2.5rem] border border-cyan-500/30 bg-slate-900/80 p-8 backdrop-blur-xl shadow-2xl space-y-6">
+            <div className="rounded-3xl md:rounded-[2.5rem] border border-cyan-500/30 bg-slate-900/80 p-5 sm:p-8 backdrop-blur-xl shadow-2xl space-y-5 sm:space-y-6">
               <div className="border-b border-white/10 pb-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                     <span>🔐 Sign In to Portal</span>
                   </h2>
-                  <span className="text-xs font-semibold px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                  <span className="text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
                     JWT Protected
                   </span>
                 </div>

@@ -55,7 +55,7 @@ export function SidebarNav() {
   const navItems = roleNavItems[role] || adminNav;
 
   return (
-    <aside className="flex w-full flex-col gap-6 border-r border-white/10 bg-slate-950/90 p-5 lg:min-h-screen lg:w-72 overflow-y-auto">
+    <aside className="hidden lg:flex lg:w-72 lg:min-h-screen flex-col gap-6 border-r border-white/10 bg-slate-950/90 p-5 overflow-y-auto shrink-0">
       {/* Brand Header */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
