@@ -6,6 +6,14 @@ import { TopBar } from '@/components/layout/TopBar';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
+import { extractErrorMessage } from '@/utils/errorUtil';
+
+function generateBuildingCode(name: string): string {
+  const clean = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const prefix = clean.length >= 2 ? clean.slice(0, 4) : 'BLD';
+  const rand = Math.floor(100 + Math.random() * 900);
+  return `${prefix}-${rand}`;
+}
 
 const emptyForm: BuildingRequest = { societyId: 0, buildingName: '', buildingCode: '', totalFloors: 1 };
 
@@ -63,10 +71,14 @@ export function BuildingsPage() {
 
     setSaving(true);
     try {
+      const finalCode = form.buildingCode?.trim()
+        ? form.buildingCode.trim().toUpperCase()
+        : generateBuildingCode(form.buildingName.trim());
+
       const payload: BuildingRequest = {
         societyId: society.id,
         buildingName: form.buildingName.trim(),
-        buildingCode: form.buildingCode?.trim() ? form.buildingCode.trim().toUpperCase() : undefined,
+        buildingCode: finalCode,
         totalFloors: Number(form.totalFloors) || 1,
       };
 
@@ -83,7 +95,7 @@ export function BuildingsPage() {
       setItems(result.content);
       setTotalPages(result.totalPages);
     } catch (err: any) {
-      const description = err?.response?.data?.message || err?.message || 'Check building name and code.';
+      const description = extractErrorMessage(err, 'Check building name and code.');
       pushToast({ type: 'error', title: 'Save failed', description });
     } finally {
       setSaving(false);
@@ -166,22 +178,42 @@ export function BuildingsPage() {
             className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-400 transition"
             placeholder="e.g. Tower A (Alpha)"
             value={form.buildingName}
-            onChange={event => setForm(current => ({ ...current, buildingName: event.target.value }))}
+            onChange={event => {
+              const newName = event.target.value;
+              setForm(current => ({
+                ...current,
+                buildingName: newName,
+                // If buildingCode is empty or auto-generated, update it
+                buildingCode: current.buildingCode && !current.buildingCode.includes('-')
+                  ? current.buildingCode
+                  : newName.trim() ? generateBuildingCode(newName) : '',
+              }));
+            }}
           />
         </label>
 
         <label className="flex flex-col gap-2 text-sm text-slate-300 md:col-span-1">
           <div className="flex items-center justify-between">
-            <span>Building Code</span>
-            <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-              🎲 Auto-Generated Unique
-            </span>
+            <span>Building Code *</span>
+            <button
+              type="button"
+              onClick={() => {
+                const code = form.buildingName.trim()
+                  ? generateBuildingCode(form.buildingName)
+                  : `BLD-${Math.floor(100 + Math.random() * 900)}`;
+                setForm(current => ({ ...current, buildingCode: code }));
+              }}
+              className="text-[10px] font-semibold text-cyan-400 bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/30 px-2 py-0.5 rounded-full transition active:scale-95"
+            >
+              🎲 Auto-Generate
+            </button>
           </div>
           <input
-            disabled
-            className="rounded-2xl border border-white/5 bg-slate-900/50 px-4 py-3 text-cyan-300 outline-none placeholder:text-slate-500 cursor-not-allowed font-mono text-sm"
-            placeholder="⚡ Generated on Save (e.g. BLD-4821)"
+            required
+            className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-cyan-300 outline-none placeholder:text-slate-500 focus:border-cyan-400 font-mono text-sm uppercase transition"
+            placeholder="e.g. TOW-A1 or BLD-101"
             value={form.buildingCode || ''}
+            onChange={event => setForm(current => ({ ...current, buildingCode: event.target.value.toUpperCase() }))}
           />
         </label>
 

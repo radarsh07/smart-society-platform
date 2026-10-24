@@ -11,6 +11,7 @@ import type {
 import { TopBar } from '@/components/layout/TopBar';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/hooks/useToast';
+import { extractErrorMessage } from '@/utils/errorUtil';
 
 const emptyForm: ResidentRequest = {
   buildingId: 0,
@@ -270,7 +271,7 @@ export function ResidentForm({ mode, residentId }: { mode: 'create' | 'edit'; re
 
       navigate('/residents');
     } catch (err: any) {
-      const description = err?.response?.data?.message || err?.message || 'Operation failed. Check resident details.';
+      const description = extractErrorMessage(err, 'Operation failed. Check resident details.');
       pushToast({ type: 'error', title: 'Save Failed', description });
     } finally {
       setSaving(false);

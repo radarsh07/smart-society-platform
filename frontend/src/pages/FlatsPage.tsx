@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useRole } from '@/context/RoleContext';
+import { extractErrorMessage } from '@/utils/errorUtil';
 
 const standardFlatTypes = [
   '1 BHK',
@@ -197,7 +198,7 @@ export function FlatsPage() {
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
     } catch (err: any) {
-      const description = err?.response?.data?.message || err?.message || 'Check flat details and uniqueness.';
+      const description = extractErrorMessage(err, 'Check flat details and uniqueness.');
       pushToast({ type: 'error', title: 'Save Failed', description });
     } finally {
       setSaving(false);
