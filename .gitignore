@@ -1,0 +1,43 @@
+# Node / React / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Java / Spring Boot / Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/.classpath
+backend/.project
+backend/.settings/
+*.log
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE / VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# OS / misc
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local database and secrets
+*.sql.bak
+*.sqlite
+*.db
+*.h2.db
+*.mv.db
+*.trace.db
