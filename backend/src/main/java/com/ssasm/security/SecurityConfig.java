@@ -45,11 +45,12 @@ public class SecurityConfig {
             .accessDeniedHandler(accessDeniedHandler))
         .authorizeHttpRequests(authorize -> authorize
             .requestMatchers(
+                "/",
+                "/health",
+                "/api/health",
+                "/actuator/**",
                 ApiPaths.LOGIN,
-                "/api/auth/self-register-resident",
-                "/api/auth/public-societies",
-                "/api/auth/public-buildings",
-                "/api/auth/public-flats"
+                "/api/auth/**"
             ).permitAll()
             .requestMatchers("/error").permitAll()
             .anyRequest().authenticated())

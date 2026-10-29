@@ -10,7 +10,7 @@ This guide explains how to deploy the entire platform for **free** so anyone wor
 | :--- | :--- | :--- | :--- |
 | **Frontend (React)** | [Vercel](https://vercel.com) | Unlimited bandwidth & builds, Global CDN, Free SSL | ~2 mins |
 | **Database (MySQL)** | [Aiven.io](https://aiven.io) or [TiDB Cloud](https://tidbcloud.com) | 5GB Storage, 1GB RAM, 100% Free Forever (No credit card) | ~3 mins |
-| **Backend (Spring Boot)** | [Render.com](https://render.com) or [Koyeb](https://koyeb.com) | 750 free compute hours/month, automatic HTTPS | ~5 mins |
+| **Backend (Spring Boot)** | [Render.com](https://render.com) | 750 free compute hours/month, automatic HTTPS | ~5 mins |
 | **AI Service (FastAPI)** | [Render.com](https://render.com) | Free Web Service | ~3 mins |
 
 ---
@@ -19,92 +19,75 @@ This guide explains how to deploy the entire platform for **free** so anyone wor
 
 All cloud deployment services connect automatically to GitHub for continuous deployment.
 
-1. Create a new repository on [GitHub](https://github.com/new) (e.g. `smart-society-platform`).
-2. In your terminal, run:
+1. Ensure all changes are committed and pushed to your GitHub repository:
 ```bash
 git add .
-git commit -m "feat: complete platform with security gate pass & society modules"
-git branch -M main
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>.git
-git push -u origin main
+git commit -m "fix(backend): resilient database uri parsing, health checks, and 512MB RAM tuning for Render"
+git push origin main
 ```
 
 ---
 
-## Step 2: Create Free Cloud MySQL Database (Aiven.io or TiDB Cloud)
+## Step 2: Cloud MySQL Database (Aiven.io)
 
-### Option A: Aiven for MySQL (Recommended - Free Forever, No Credit Card)
-1. Sign up at [Aiven.io](https://aiven.io).
-2. Click **Create Service** → Select **MySQL** → Select the **Free Tier**.
-3. Choose any cloud region closest to you (e.g. AWS Mumbai or Singapore).
-4. Click **Create Service**.
-5. Once created, copy the **Service URI** or the credentials:
-   - **Host**
-   - **Port** (e.g. `12345`)
-   - **User** (`avnadmin`)
-   - **Password**
-   - **Database** (`defaultdb` or create `ssasm_db`)
+### Status Check in Aiven Console
+Make sure your MySQL database in [Aiven Console](https://console.aiven.io) is **Running / Active** (not Powered Off or Suspended). When powered off, Aiven temporarily unpublishes the DNS name.
 
-Your Spring Boot JDBC URL will look like:
+Your Aiven MySQL URI format:
 ```text
-jdbc:mysql://<HOST>:<PORT>/defaultdb?sslmode=require&allowPublicKeyRetrieval=true
+mysql://avnadmin:<PASSWORD>@<HOST>:<PORT>/defaultdb?ssl-mode=REQUIRED
+```
+
+The Spring Boot backend now has an auto-parser that supports:
+1. `mysql://` URI format directly
+2. OR standard `jdbc:mysql://` format:
+```text
+jdbc:mysql://<HOST>:<PORT>/defaultdb?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=true&sslMode=REQUIRED&serverTimezone=UTC
 ```
 
 ---
 
 ## Step 3: Deploy Spring Boot Backend on Render.com
 
-1. Sign up at [Render.com](https://render.com).
-2. Click **New +** → **Web Service**.
-3. Connect your GitHub repository.
+1. Sign up / Log in at [Render.com](https://render.com).
+2. Go to your web service: **`smart-society-backend-nh1o`** (or create a New Web Service).
+3. Connect your repository: `https://github.com/radarsh07/smart-society-platform`
 4. Configure settings:
-   - **Name**: `ssasm-backend`
    - **Root Directory**: `backend`
    - **Environment**: `Docker` (Render automatically uses `backend/Dockerfile`)
    - **Instance Type**: `Free`
-5. Under **Environment Variables**, add:
-   - `SPRING_DATASOURCE_URL`: `<YOUR_AIVEN_JDBC_URL>`
-   - `SPRING_DATASOURCE_USERNAME`: `<YOUR_AIVEN_DB_USERNAME>`
-   - `SPRING_DATASOURCE_PASSWORD`: `<YOUR_AIVEN_DB_PASSWORD>`
-   - `PORT`: `8080`
-   - `JWT_SECRET`: `QnJvd3NlcndhdGVyLWF1dGgta2V5LXNlY3JldC0zMi1ieXRlcy1taW5pbXVt`
-6. Click **Create Web Service**.
-7. Render will build and launch your backend at:
-   `https://ssasm-backend.onrender.com`
+5. Under **Environment Variables**, set:
+   | Key | Value |
+   | :--- | :--- |
+   | `SPRING_DATASOURCE_URL` | `mysql://avnadmin:<YOUR_AIVEN_PASSWORD>@<YOUR_AIVEN_HOST>:<PORT>/defaultdb?ssl-mode=REQUIRED` |
+   | `SPRING_DATASOURCE_USERNAME` | `avnadmin` |
+   | `SPRING_DATASOURCE_PASSWORD` | `<YOUR_AIVEN_PASSWORD>` |
+   | `PORT` | `8080` |
+   | `JWT_SECRET` | `QnJvd3NlcndhdGVyLWF1dGgta2V5LXNlY3JldC0zMi1ieXRlcy1taW5pbXVt` |
+6. Click **Manual Deploy** → **Clear build cache & deploy**.
+7. Test the health check endpoint in your browser:
+   `https://smart-society-backend-nh1o.onrender.com/`
+   Returns: `{"status": "UP", "service": "Smart Society Management Backend"}`
 
 ---
 
 ## Step 4: Deploy React Frontend on Vercel
 
-1. Sign up at [Vercel](https://vercel.com).
-2. Click **Add New** → **Project** → Import your GitHub repository.
-3. In **Project Settings**:
-   - **Root Directory**: Click edit and choose `frontend`.
-   - **Framework Preset**: `Vite` (auto-detected).
-4. In **Environment Variables**, add:
-   - `VITE_API_BASE_URL`: `https://ssasm-backend.onrender.com/api` (URL from Step 3)
-5. Click **Deploy**.
-6. In ~60 seconds, your frontend will be live worldwide at:
-   `https://your-project.vercel.app`
+1. Log into [Vercel](https://vercel.com) and go to your project: `smart-society-platform`.
+2. Under **Settings** → **Environment Variables**:
+   | Key | Value |
+   | :--- | :--- |
+   | `VITE_API_BASE_URL` | `https://smart-society-backend-nh1o.onrender.com/api` |
+3. Under **Deployments**, click **Redeploy**.
+4. Your frontend is live at:
+   `https://smart-society-platform-hack-3ec7.vercel.app` (or your assigned Vercel URL).
 
 ---
 
-## Step 5: (Optional) Deploy Python AI Microservice on Render
+## 🔒 Post-Deployment Verification & Pre-Seeded Accounts
 
-1. On Render, click **New +** → **Web Service**.
-2. Connect your repository.
-3. Configure:
-   - **Root Directory**: `ai-service`
-   - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Click **Create Web Service**.
-
----
-
-## 🔒 Post-Deployment Verification
-
-Open your live Vercel URL in your browser or on mobile:
-1. Log in with **`admin` / `admin123`** → Society Admin Portal.
-2. Log in with **`abhishek` / `abhishek123`** → Resident Portal (shows your digital gate pass `GP-RES-6-101`).
-3. Log in with **`guard` / `guard123`** → Security Gate Scanner console.
+Once deployed, you can immediately log in with:
+1. **Admin Portal**: Username `admin`, Password `admin123`
+2. **Resident Portal**: Username `abhishek`, Password `abhishek123`
+3. **Security Guard Portal**: Username `guard`, Password `guard123`
+4. **Maintenance Staff Portal**: Username `staff`, Password `staff123`
