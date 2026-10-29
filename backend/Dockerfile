@@ -9,4 +9,4 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Xms128m", "-Xmx280m", "-XX:MaxMetaspaceSize=128m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Xss512k", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Xms128m", "-Xmx280m", "-XX:MaxMetaspaceSize=128m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Xss512k", "-XX:+ExitOnOutOfMemoryError", "-jar", "app.jar"]

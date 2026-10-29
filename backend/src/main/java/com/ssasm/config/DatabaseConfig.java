@@ -14,6 +14,7 @@ import com.zaxxer.hikari.HikariDataSource;
 /**
  * Cloud-resilient DataSource configuration supporting both standard JDBC URLs
  * and cloud service URIs (e.g. Aiven, Render, Railway mysql://user:pass@host:port/db).
+ * Includes automatic keep-alive pings to prevent idle TCP drops across days of running.
  */
 @Configuration
 public class DatabaseConfig {
@@ -52,13 +53,17 @@ public class DatabaseConfig {
     rawUrl = rawUrl.trim();
     HikariConfig config = new HikariConfig();
     config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-    // -1 ensures Hikari does not terminate JVM on startup if DB is waking up or network has transient delay
+
+    // Resilience against cloud timeouts, idle drops, and sleep cycles:
     config.setInitializationFailTimeout(-1);
     config.setConnectionTimeout(30000);
     config.setMaximumPoolSize(5);
     config.setMinimumIdle(1);
-    config.setIdleTimeout(300000);
-    config.setMaxLifetime(900000);
+    config.setIdleTimeout(300000); // 5 mins
+    config.setMaxLifetime(600000); // 10 mins (refreshes before MySQL wait_timeout or NAT drop)
+    config.setKeepaliveTime(30000); // Periodic 30s ping keeps socket alive through days of running
+    config.setConnectionTestQuery("/* ping */ SELECT 1");
+    config.setLeakDetectionThreshold(60000);
 
     if (rawUrl.startsWith("mysql://")) {
       try {

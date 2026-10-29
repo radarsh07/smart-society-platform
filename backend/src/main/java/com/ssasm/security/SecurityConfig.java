@@ -49,6 +49,7 @@ public class SecurityConfig {
                 "/health",
                 "/api/health",
                 "/actuator/**",
+                "/ws/**",
                 ApiPaths.LOGIN,
                 "/api/auth/**"
             ).permitAll()
