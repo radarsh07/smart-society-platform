@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { useRole } from '@/context/RoleContext';
 
 export function ComplaintsPage() {
-  const { role } = useRole();
+  const { role, user } = useRole();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ export function ComplaintsPage() {
   const { pushToast } = useToast();
 
   const [form, setForm] = useState<ComplaintRequest>({
-    residentId: 1,
+    residentId: user?.id || 1,
     categoryId: 1,
     subject: '',
     description: '',
@@ -29,34 +29,69 @@ export function ComplaintsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [resComplaints, resStaff] = await Promise.all([
-        complaintApi.getComplaints(0, 50),
-        staffApi.getStaff(0, 50)
-      ]);
-      setComplaints(resComplaints.data?.content || []);
-      setStaffList(resStaff.data?.content || []);
-    } catch {
+      const resComplaints: any = await complaintApi.getComplaints(0, 50);
+      const items: Complaint[] = Array.isArray(resComplaints)
+        ? resComplaints
+        : Array.isArray(resComplaints?.data)
+          ? resComplaints.data
+          : (resComplaints?.data?.content || resComplaints?.content || []);
+      setComplaints(items);
+    } catch (err: any) {
+      console.error('Failed to load complaints:', err);
       pushToast({ type: 'error', title: 'Failed to load complaints data' });
     } finally {
       setLoading(false);
+    }
+
+    // Only Admin and Staff need the staff list for assignment
+    if (role === 'ADMIN' || role === 'STAFF') {
+      try {
+        const resStaff: any = await staffApi.getStaff(0, 50);
+        const staff: Staff[] = Array.isArray(resStaff)
+          ? resStaff
+          : Array.isArray(resStaff?.data)
+            ? resStaff.data
+            : (resStaff?.data?.content || resStaff?.content || []);
+        setStaffList(staff);
+      } catch (err) {
+        console.warn('Staff list could not be loaded:', err);
+      }
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await complaintApi.createComplaint(form);
-      pushToast({ type: 'success', title: 'Complaint Ticket Raised', description: 'Ticket created successfully and queued for staff assignment.' });
+      const payload: ComplaintRequest = {
+        ...form,
+        residentId: user?.id || form.residentId || 1,
+      };
+      await complaintApi.createComplaint(payload);
+      pushToast({
+        type: 'success',
+        title: 'Complaint Ticket Raised',
+        description: 'Ticket created successfully and queued for staff assignment.',
+      });
       setShowModal(false);
-      setForm({ residentId: 1, categoryId: 1, subject: '', description: '', priority: 'MEDIUM', imageUrls: [] });
-      loadData();
-    } catch {
-      pushToast({ type: 'error', title: 'Submission failed', description: 'Please check your inputs.' });
+      setForm({
+        residentId: user?.id || 1,
+        categoryId: 1,
+        subject: '',
+        description: '',
+        priority: 'MEDIUM',
+        imageUrls: [],
+      });
+      // Immediately reload data to show the new ticket
+      await loadData();
+    } catch (err: any) {
+      console.error('Submission failed:', err);
+      const msg = err?.response?.data?.message || 'Please check your inputs and try again.';
+      pushToast({ type: 'error', title: 'Submission failed', description: msg });
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +149,10 @@ export function ComplaintsPage() {
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <TopBar title="Complaint Management Queue" subtitle="Issue tracking, priority classification, society staff assignment, and lifecycle resolution status." />
+        <TopBar
+          title={role === 'RESIDENT' ? 'My Complaints & Issues' : 'Complaint Management Queue'}
+          subtitle="Issue tracking, priority classification, society staff assignment, and lifecycle resolution status."
+        />
         {(role === 'RESIDENT' || role === 'ADMIN') && (
           <button
             onClick={() => setShowModal(true)}
@@ -149,7 +187,7 @@ export function ComplaintsPage() {
                 
                 <div className="pt-1 flex flex-wrap gap-2">
                   <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-semibold text-slate-300 border border-white/5">
-                    Category: {item.categoryName || 'General'}
+                    Category: {item.categoryName || 'General Maintenance'}
                   </span>
                 </div>
               </div>
@@ -289,7 +327,10 @@ export function ComplaintsPage() {
                   >
                     <option value={1}>Plumbing Services</option>
                     <option value={2}>Electrical Maintenance</option>
-                    <option value={3}>General Maintenance</option>
+                    <option value={3}>Elevator / Lift</option>
+                    <option value={4}>Cleanliness & Waste</option>
+                    <option value={5}>Security & Access</option>
+                    <option value={6}>General Maintenance</option>
                   </select>
                 </div>
               </div>

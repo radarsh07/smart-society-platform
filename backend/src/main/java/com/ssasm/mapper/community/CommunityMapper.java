@@ -1,5 +1,7 @@
 package com.ssasm.mapper.community;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.stereotype.Component;
 import com.ssasm.dto.community.ComplaintResponse;
 import com.ssasm.dto.community.FacilityBookingResponse;
@@ -23,22 +25,47 @@ import com.ssasm.entity.community.ServiceBooking;
 import com.ssasm.entity.community.Staff;
 import com.ssasm.entity.community.ToLetListing;
 import com.ssasm.entity.community.Vehicle;
+import com.ssasm.enums.ComplaintPriority;
+import com.ssasm.enums.ComplaintStatus;
 
 @Component
 public class CommunityMapper {
 
   public ComplaintResponse toComplaintResponse(Complaint complaint) {
+    if (complaint == null) {
+      return null;
+    }
+
+    Long resId = null;
+    String resName = "Resident";
+    if (complaint.getResident() != null) {
+      resId = complaint.getResident().getId();
+      resName = complaint.getResident().getFullName();
+    }
+
+    Long catId = null;
+    String catName = "General Maintenance";
+    if (complaint.getCategory() != null) {
+      catId = complaint.getCategory().getId();
+      catName = complaint.getCategory().getName();
+    }
+
+    List<String> images = new ArrayList<>();
+    if (complaint.getImageUrls() != null) {
+      images.addAll(complaint.getImageUrls());
+    }
+
     return ComplaintResponse.builder()
         .id(complaint.getId())
-        .ticketNumber(complaint.getTicketNumber())
-        .residentId(complaint.getResident().getId())
-        .residentName(complaint.getResident().getFullName())
-        .categoryId(complaint.getCategory().getId())
-        .categoryName(complaint.getCategory().getName())
-        .subject(complaint.getSubject())
-        .description(complaint.getDescription())
-        .priority(complaint.getPriority())
-        .status(complaint.getStatus())
+        .ticketNumber(complaint.getTicketNumber() != null ? complaint.getTicketNumber() : "CMP-" + complaint.getId())
+        .residentId(resId)
+        .residentName(resName)
+        .categoryId(catId)
+        .categoryName(catName)
+        .subject(complaint.getSubject() != null ? complaint.getSubject() : "No Subject")
+        .description(complaint.getDescription() != null ? complaint.getDescription() : "")
+        .priority(complaint.getPriority() != null ? complaint.getPriority() : ComplaintPriority.MEDIUM)
+        .status(complaint.getStatus() != null ? complaint.getStatus() : ComplaintStatus.OPEN)
         .assignedStaffId(complaint.getAssignedStaff() != null ? complaint.getAssignedStaff().getId() : null)
         .assignedStaffName(complaint.getAssignedStaff() != null ? complaint.getAssignedStaff().getFullName() : null)
         .assignedAt(complaint.getAssignedAt())
@@ -46,12 +73,13 @@ public class CommunityMapper {
         .closedAt(complaint.getClosedAt())
         .feedbackRating(complaint.getFeedbackRating())
         .feedbackComment(complaint.getFeedbackComment())
-        .imageUrls(complaint.getImageUrls())
+        .imageUrls(images)
         .active(complaint.isActive())
         .build();
   }
 
   public StaffResponse toStaffResponse(Staff staff) {
+    if (staff == null) return null;
     return StaffResponse.builder()
         .id(staff.getId())
         .fullName(staff.getFullName())
@@ -65,10 +93,21 @@ public class CommunityMapper {
   }
 
   public MaintenanceBillResponse toMaintenanceBillResponse(MaintenanceBill bill) {
+    if (bill == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (bill.getResident() != null) {
+      resId = bill.getResident().getId();
+      resName = bill.getResident().getFullName();
+    }
+    List<BillItemResponse> itemsList = new ArrayList<>();
+    if (bill.getItems() != null) {
+      itemsList = bill.getItems().stream().map(this::toBillItemResponse).toList();
+    }
     return MaintenanceBillResponse.builder()
         .id(bill.getId())
-        .residentId(bill.getResident().getId())
-        .residentName(bill.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .billNumber(bill.getBillNumber())
         .billingMonth(bill.getBillingMonth())
         .dueDate(bill.getDueDate())
@@ -76,12 +115,13 @@ public class CommunityMapper {
         .paidAmount(bill.getPaidAmount())
         .outstandingAmount(bill.getOutstandingAmount())
         .status(bill.getStatus())
-        .items(bill.getItems().stream().map(this::toBillItemResponse).toList())
+        .items(itemsList)
         .active(bill.isActive())
         .build();
   }
 
   public BillItemResponse toBillItemResponse(BillItem item) {
+    if (item == null) return null;
     return BillItemResponse.builder()
         .id(item.getId())
         .name(item.getName())
@@ -91,10 +131,17 @@ public class CommunityMapper {
   }
 
   public VehicleResponse toVehicleResponse(Vehicle vehicle) {
+    if (vehicle == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (vehicle.getResident() != null) {
+      resId = vehicle.getResident().getId();
+      resName = vehicle.getResident().getFullName();
+    }
     return VehicleResponse.builder()
         .id(vehicle.getId())
-        .residentId(vehicle.getResident().getId())
-        .residentName(vehicle.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .vehicleNumber(vehicle.getVehicleNumber())
         .make(vehicle.getMake())
         .model(vehicle.getModel())
@@ -104,12 +151,25 @@ public class CommunityMapper {
   }
 
   public ParkingAllocationResponse toParkingAllocationResponse(ParkingAllocation allocation) {
+    if (allocation == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (allocation.getResident() != null) {
+      resId = allocation.getResident().getId();
+      resName = allocation.getResident().getFullName();
+    }
+    Long slotId = null;
+    String slotNum = "P-01";
+    if (allocation.getSlot() != null) {
+      slotId = allocation.getSlot().getId();
+      slotNum = allocation.getSlot().getSlotNumber();
+    }
     return ParkingAllocationResponse.builder()
         .id(allocation.getId())
-        .residentId(allocation.getResident().getId())
-        .residentName(allocation.getResident().getFullName())
-        .slotId(allocation.getSlot().getId())
-        .slotNumber(allocation.getSlot().getSlotNumber())
+        .residentId(resId)
+        .residentName(resName)
+        .slotId(slotId)
+        .slotNumber(slotNum)
         .vehicleId(allocation.getVehicle() != null ? allocation.getVehicle().getId() : null)
         .vehicleNumber(allocation.getVehicle() != null ? allocation.getVehicle().getVehicleNumber() : null)
         .allocatedAt(allocation.getAllocatedAt())
@@ -119,12 +179,25 @@ public class CommunityMapper {
   }
 
   public FacilityBookingResponse toFacilityBookingResponse(FacilityBooking booking) {
+    if (booking == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (booking.getResident() != null) {
+      resId = booking.getResident().getId();
+      resName = booking.getResident().getFullName();
+    }
+    Long facId = null;
+    String facName = "Facility";
+    if (booking.getFacility() != null) {
+      facId = booking.getFacility().getId();
+      facName = booking.getFacility().getName();
+    }
     return FacilityBookingResponse.builder()
         .id(booking.getId())
-        .facilityId(booking.getFacility().getId())
-        .facilityName(booking.getFacility().getName())
-        .residentId(booking.getResident().getId())
-        .residentName(booking.getResident().getFullName())
+        .facilityId(facId)
+        .facilityName(facName)
+        .residentId(resId)
+        .residentName(resName)
         .startTime(booking.getStartTime())
         .endTime(booking.getEndTime())
         .status(booking.getStatus())
@@ -134,10 +207,17 @@ public class CommunityMapper {
   }
 
   public MarketplaceItemResponse toMarketplaceItemResponse(MarketplaceItem item) {
+    if (item == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (item.getResident() != null) {
+      resId = item.getResident().getId();
+      resName = item.getResident().getFullName();
+    }
     return MarketplaceItemResponse.builder()
         .id(item.getId())
-        .residentId(item.getResident().getId())
-        .residentName(item.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .title(item.getTitle())
         .description(item.getDescription())
         .price(item.getPrice())
@@ -148,10 +228,17 @@ public class CommunityMapper {
   }
 
   public ToLetListingResponse toToLetListingResponse(ToLetListing listing) {
+    if (listing == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (listing.getResident() != null) {
+      resId = listing.getResident().getId();
+      resName = listing.getResident().getFullName();
+    }
     return ToLetListingResponse.builder()
         .id(listing.getId())
-        .residentId(listing.getResident().getId())
-        .residentName(listing.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .title(listing.getTitle())
         .description(listing.getDescription())
         .rent(listing.getRent())
@@ -162,10 +249,17 @@ public class CommunityMapper {
   }
 
   public ServiceBookingResponse toServiceBookingResponse(ServiceBooking booking) {
+    if (booking == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (booking.getResident() != null) {
+      resId = booking.getResident().getId();
+      resName = booking.getResident().getFullName();
+    }
     return ServiceBookingResponse.builder()
         .id(booking.getId())
-        .residentId(booking.getResident().getId())
-        .residentName(booking.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .serviceType(booking.getServiceType())
         .description(booking.getDescription())
         .preferredTime(booking.getPreferredTime())
@@ -175,10 +269,17 @@ public class CommunityMapper {
   }
 
   public ParcelResponse toParcelResponse(Parcel parcel) {
+    if (parcel == null) return null;
+    Long resId = null;
+    String resName = "Resident";
+    if (parcel.getResident() != null) {
+      resId = parcel.getResident().getId();
+      resName = parcel.getResident().getFullName();
+    }
     return ParcelResponse.builder()
         .id(parcel.getId())
-        .residentId(parcel.getResident().getId())
-        .residentName(parcel.getResident().getFullName())
+        .residentId(resId)
+        .residentName(resName)
         .trackingNumber(parcel.getTrackingNumber())
         .courierName(parcel.getCourierName())
         .description(parcel.getDescription())
@@ -189,9 +290,14 @@ public class CommunityMapper {
   }
 
   public com.ssasm.dto.community.PaymentResponse toPaymentResponse(com.ssasm.entity.community.Payment payment) {
+    if (payment == null) return null;
+    Long billId = null;
+    if (payment.getBill() != null) {
+      billId = payment.getBill().getId();
+    }
     return com.ssasm.dto.community.PaymentResponse.builder()
         .id(payment.getId())
-        .billId(payment.getBill().getId())
+        .billId(billId)
         .receiptNumber("REC-" + payment.getId() + "-" + System.currentTimeMillis() % 10000)
         .amountPaid(payment.getAmount())
         .paymentMethod(com.ssasm.enums.PaymentMethod.RAZORPAY)

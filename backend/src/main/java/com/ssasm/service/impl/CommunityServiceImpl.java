@@ -470,6 +470,12 @@ public class CommunityServiceImpl implements CommunityService {
   }
 
   private Resident findResident(Long residentId, String username) {
+    if (username != null && !username.isBlank() && !"admin".equalsIgnoreCase(username)) {
+      java.util.Optional<Resident> res = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(username);
+      if (res.isPresent()) {
+        return res.get();
+      }
+    }
     if (residentId != null) {
       java.util.Optional<Resident> resident = residentRepository.findById(residentId).filter(r -> !r.isDeleted());
       if (resident.isPresent()) {

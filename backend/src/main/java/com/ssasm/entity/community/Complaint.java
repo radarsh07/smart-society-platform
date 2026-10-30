@@ -39,12 +39,12 @@ public class Complaint extends BaseEntity {
   private String ticketNumber;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "resident_id", nullable = false)
   private Resident resident;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "category_id", nullable = false)
   private ComplaintCategory category;
 
@@ -65,7 +65,7 @@ public class Complaint extends BaseEntity {
   @Column(name = "status", nullable = false, length = 20)
   private ComplaintStatus status = ComplaintStatus.OPEN;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "assigned_staff_id")
   private User assignedStaff;
 
@@ -85,7 +85,7 @@ public class Complaint extends BaseEntity {
   @Column(name = "feedback_comment", length = 500)
   private String feedbackComment;
 
-  @ElementCollection
+  @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "complaint_images", joinColumns = @JoinColumn(name = "complaint_id"))
   @Column(name = "image_url")
   private List<String> imageUrls = new ArrayList<>();
