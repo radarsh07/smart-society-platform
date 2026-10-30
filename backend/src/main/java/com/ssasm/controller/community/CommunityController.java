@@ -99,6 +99,17 @@ public class CommunityController {
     return ResponseEntity.ok(ResponseUtil.success("Staff created successfully", response));
   }
 
+  @PutMapping("/staff/{id}/status")
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SOCIETY_ADMIN', 'ROLE_SOCIETY_STAFF')")
+  public ResponseEntity<ApiResponse<StaffResponse>> updateStaffStatus(
+      @PathVariable Long id,
+      @RequestParam String workStatus,
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest httpServletRequest) {
+    StaffResponse response = communityService.updateStaffStatus(id, workStatus, principal.getUsername(), httpServletRequest.getRemoteAddr());
+    return ResponseEntity.ok(ResponseUtil.success("Staff work status updated successfully", response));
+  }
+
   @GetMapping("/staff")
   @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SOCIETY_ADMIN', 'ROLE_SOCIETY_STAFF', 'ROLE_RESIDENT')")
   public ResponseEntity<ApiResponse<PageResponse<StaffResponse>>> listStaff(

@@ -145,12 +145,19 @@ public class CommunityServiceImpl implements CommunityService {
     complaint.setCategory(category);
     complaint.setSubject(request.getSubject().trim());
     complaint.setDescription(request.getDescription().trim());
-    complaint.setPriority(request.getPriority());
+    // Auto-detect priority intelligently based on keywords (fire, water leak, gas, electrical hazard, etc.)
+    com.ssasm.enums.ComplaintPriority determinedPriority = determineAutoPriority(
+        category != null ? category.getName() : null,
+        request.getSubject(),
+        request.getDescription(),
+        request.getPriority()
+    );
+    complaint.setPriority(determinedPriority);
     complaint.setTicketNumber("CMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     complaint.setImageUrls(request.getImageUrls());
     complaint.setCreatedBy(username);
     complaint.setUpdatedBy(username);
-    autoAssignStaffIfAvailable(complaint, category, request.getSubject());
+    autoAssignStaffIfAvailable(complaint, category, request.getSubject(), request.getDescription());
     Complaint saved = complaintRepository.save(complaint);
     domainAuditService.log(buildEvent(username, ipAddress, "CREATE", "Complaint", saved.getId().toString(), "SUCCESS", "Complaint created"));
     return communityMapper.toComplaintResponse(saved);
@@ -224,6 +231,18 @@ public class CommunityServiceImpl implements CommunityService {
     staff.setUpdatedBy(username);
     Staff saved = staffRepository.save(staff);
     domainAuditService.log(buildEvent(username, ipAddress, "CREATE", "Staff", saved.getId().toString(), "SUCCESS", "Staff created"));
+    return communityMapper.toStaffResponse(saved);
+  }
+
+  @Override
+  public StaffResponse updateStaffStatus(Long staffId, String workStatus, String username, String ipAddress) {
+    Staff staff = staffRepository.findById(staffId)
+        .filter(s -> !s.isDeleted())
+        .orElseThrow(() -> new ResourceNotFoundException("Staff member not found"));
+    staff.setWorkStatus(workStatus != null ? workStatus.toUpperCase().trim() : "AVAILABLE");
+    staff.setUpdatedBy(username);
+    Staff saved = staffRepository.save(staff);
+    domainAuditService.log(buildEvent(username, ipAddress, "UPDATE_STATUS", "Staff", saved.getId().toString(), "SUCCESS", "Staff work status updated to " + workStatus));
     return communityMapper.toStaffResponse(saved);
   }
 
@@ -507,7 +526,62 @@ public class CommunityServiceImpl implements CommunityService {
     return findResident(residentId, null);
   }
 
-  private void autoAssignStaffIfAvailable(Complaint complaint, ComplaintCategory category, String subject) {
+  /**
+   * Intelligently sets priority based on keywords in category, subject, and description.
+   * Fire, smoke, gas, trapped elevator, short circuit -> URGENT
+   * Water leak, pipe burst, power cut, main gate security breach -> HIGH
+   * Medium / low default if not critical.
+   */
+  private com.ssasm.enums.ComplaintPriority determineAutoPriority(
+      String categoryName,
+      String subject,
+      String description,
+      com.ssasm.enums.ComplaintPriority requestedPriority) {
+
+    String combined = ((categoryName != null ? categoryName : "") + " "
+        + (subject != null ? subject : "") + " "
+        + (description != null ? description : "")).toLowerCase();
+
+    // 1. Extreme Critical / Life Safety -> URGENT
+    if (combined.contains("fire") || combined.contains("smoke") || combined.contains("gas leak")
+        || combined.contains("cylinder") || combined.contains("explosion") || combined.contains("sparking")
+        || combined.contains("short circuit") || combined.contains("shock") || combined.contains("electrocution")
+        || combined.contains("trapped") || combined.contains("lift trapped") || combined.contains("medical")
+        || combined.contains("flood") || combined.contains("burst pipe") || combined.contains("overflow")) {
+      return com.ssasm.enums.ComplaintPriority.URGENT;
+    }
+
+    // 2. High Severity -> HIGH (Water leakage, no power, lift failure, security)
+    if (combined.contains("water") || combined.contains("leak") || combined.contains("seepage")
+        || combined.contains("drainage") || combined.contains("sewage") || combined.contains("contamination")
+        || combined.contains("no power") || combined.contains("blackout") || combined.contains("tripping")
+        || combined.contains("lift stop") || combined.contains("elevator breakdown")
+        || combined.contains("theft") || combined.contains("trespassing") || combined.contains("break-in")
+        || combined.contains("urgent") || combined.contains("emergency")) {
+      return com.ssasm.enums.ComplaintPriority.HIGH;
+    }
+
+    // 3. If user explicitly provided HIGH or URGENT, honor it
+    if (requestedPriority == com.ssasm.enums.ComplaintPriority.URGENT || requestedPriority == com.ssasm.enums.ComplaintPriority.HIGH) {
+      return requestedPriority;
+    }
+
+    // 4. Minor issues -> LOW
+    if (combined.contains("cleaning") || combined.contains("dust") || combined.contains("sweep")
+        || combined.contains("painting") || combined.contains("cosmetic") || combined.contains("bulb replacement")
+        || combined.contains("garden") || combined.contains("grass") || combined.contains("noise complaint")) {
+      return com.ssasm.enums.ComplaintPriority.LOW;
+    }
+
+    // 5. Default: MEDIUM
+    return requestedPriority != null ? requestedPriority : com.ssasm.enums.ComplaintPriority.MEDIUM;
+  }
+
+  /**
+   * Automatically assigns ticket to available staff matching category & issue specialization.
+   * Strictly verifies staff is available (workStatus = AVAILABLE or ACTIVE or ON_DUTY, NOT ON_JOB / OFF_DUTY / BUSY / LEAVE).
+   */
+  private void autoAssignStaffIfAvailable(Complaint complaint, ComplaintCategory category, String subject, String description) {
     try {
       java.util.List<Staff> staffMembers = staffRepository.findByDeletedFalse();
       if (staffMembers == null || staffMembers.isEmpty()) {
@@ -516,7 +590,7 @@ public class CommunityServiceImpl implements CommunityService {
       }
 
       String catName = (category != null && category.getName() != null) ? category.getName().toLowerCase().trim() : "";
-      String subjectText = (subject != null) ? subject.toLowerCase().trim() : "";
+      String combinedText = ((subject != null ? subject : "") + " " + (description != null ? description : "")).toLowerCase().trim();
 
       Staff bestMatch = null;
       int bestScore = 0;
@@ -526,24 +600,20 @@ public class CommunityServiceImpl implements CommunityService {
           continue;
         }
 
-        String status = s.getWorkStatus();
-        boolean isAvailable = status == null || status.isBlank()
-            || "AVAILABLE".equalsIgnoreCase(status.trim())
-            || "ACTIVE".equalsIgnoreCase(status.trim())
-            || "ON_DUTY".equalsIgnoreCase(status.trim());
-
-        if (!isAvailable) {
+        // Strictly check availability
+        if (!isStaffAvailable(s)) {
           continue;
         }
 
-        int score = calculateSpecializationMatchScore(catName, subjectText, s.getSpecialization());
+        int score = calculateSpecializationMatchScore(catName, combinedText, s.getSpecialization());
         if (score > bestScore) {
           bestScore = score;
           bestMatch = s;
         }
       }
 
-      if (bestMatch != null && bestScore > 0) {
+      // Only assign if a domain-specific match score threshold is met (score >= 50)
+      if (bestMatch != null && bestScore >= 50) {
         com.ssasm.entity.auth.User staffUser = bestMatch.getUser();
         if (staffUser == null) {
           staffUser = userRepository.findByEmailIgnoreCase(bestMatch.getEmail())
@@ -563,49 +633,84 @@ public class CommunityServiceImpl implements CommunityService {
     }
   }
 
-  private int calculateSpecializationMatchScore(String catName, String subject, String specialization) {
+  private boolean isStaffAvailable(Staff staff) {
+    if (staff == null || staff.isDeleted()) {
+      return false;
+    }
+    String status = staff.getWorkStatus();
+    if (status == null || status.isBlank()) {
+      return true; // Default available
+    }
+    String s = status.trim().toUpperCase();
+    // Forbidden if busy, on job, off duty, or on leave
+    if (s.contains("BUSY") || s.contains("JOB") || s.contains("OFF") || s.contains("LEAVE") || s.contains("UNAVAILABLE")) {
+      return false;
+    }
+    return s.equals("AVAILABLE") || s.equals("ACTIVE") || s.equals("ON_DUTY");
+  }
+
+  private int calculateSpecializationMatchScore(String catName, String text, String specialization) {
     if (specialization == null || specialization.isBlank()) {
-      return 5;
+      return 0; // Don't assign to unknown specialization
     }
     String spec = specialization.toLowerCase().trim();
     int score = 0;
 
+    // Exact or direct match
     if (catName.contains(spec) || spec.contains(catName)) {
       score += 100;
     }
 
-    boolean isElectricReq = catName.contains("electric") || subject.contains("electric") || subject.contains("power") || subject.contains("light") || subject.contains("wire") || subject.contains("switch") || subject.contains("fuse");
+    // Electrical matching: if complaint mentions electric/power/light/wire/switch/spark/fuse/geyser/fan
+    boolean isElectricReq = catName.contains("electric")
+        || text.contains("electric") || text.contains("power") || text.contains("light")
+        || text.contains("wire") || text.contains("switch") || text.contains("fuse")
+        || text.contains("spark") || text.contains("short circuit") || text.contains("fan")
+        || text.contains("geyser") || text.contains("mcb") || text.contains("socket");
+
     boolean isElectricStaff = spec.contains("electric") || spec.contains("wire") || spec.contains("light") || spec.contains("power");
+
     if (isElectricReq && isElectricStaff) {
-      score += 80;
+      score += 150;
     }
 
-    boolean isPlumbingReq = catName.contains("plumb") || subject.contains("plumb") || subject.contains("pipe") || subject.contains("leak") || subject.contains("tap") || subject.contains("water") || subject.contains("drain");
+    // Plumbing matching: pipe, leak, water, tap, sink, flush, drain, toilet, sewage
+    boolean isPlumbingReq = catName.contains("plumb")
+        || text.contains("plumb") || text.contains("pipe") || text.contains("leak")
+        || text.contains("tap") || text.contains("water") || text.contains("drain")
+        || text.contains("sink") || text.contains("flush") || text.contains("toilet")
+        || text.contains("sewage") || text.contains("seepage") || text.contains("overflow");
+
     boolean isPlumbingStaff = spec.contains("plumb") || spec.contains("pipe") || spec.contains("water");
+
     if (isPlumbingReq && isPlumbingStaff) {
-      score += 80;
+      score += 150;
     }
 
-    boolean isLiftReq = catName.contains("lift") || catName.contains("elevator") || subject.contains("lift") || subject.contains("elevator");
+    // Elevator / Lift
+    boolean isLiftReq = catName.contains("lift") || catName.contains("elevator") || text.contains("lift") || text.contains("elevator");
     boolean isLiftStaff = spec.contains("lift") || spec.contains("elevator");
     if (isLiftReq && isLiftStaff) {
-      score += 80;
+      score += 150;
     }
 
-    boolean isCleanReq = catName.contains("clean") || catName.contains("waste") || subject.contains("garbage") || subject.contains("clean") || subject.contains("dust");
+    // Cleanliness / Waste / Housekeeping
+    boolean isCleanReq = catName.contains("clean") || catName.contains("waste") || text.contains("garbage") || text.contains("clean") || text.contains("dust") || text.contains("trash");
     boolean isCleanStaff = spec.contains("clean") || spec.contains("waste") || spec.contains("housekeep") || spec.contains("janitor");
     if (isCleanReq && isCleanStaff) {
-      score += 80;
+      score += 150;
     }
 
-    boolean isSecReq = catName.contains("security") || catName.contains("access") || subject.contains("gate") || subject.contains("intercom");
+    // Security / Access
+    boolean isSecReq = catName.contains("security") || catName.contains("access") || text.contains("gate") || text.contains("intercom") || text.contains("guard") || text.contains("trespassing");
     boolean isSecStaff = spec.contains("security") || spec.contains("guard") || spec.contains("access");
     if (isSecReq && isSecStaff) {
-      score += 80;
+      score += 150;
     }
 
+    // General fallback
     if (spec.contains("general") || spec.contains("maintenance") || spec.contains("lead")) {
-      score += 20;
+      score += 10;
     }
 
     return score;

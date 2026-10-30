@@ -79,9 +79,34 @@ export function StaffPage() {
                 <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold text-lg">
                   {staff.fullName.charAt(0)}
                 </div>
-                <span className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-                  {staff.workStatus || 'ACTIVE'}
-                </span>
+                <select
+                  value={staff.workStatus || 'AVAILABLE'}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value;
+                    try {
+                      await staffApi.updateStatus(staff.id, newStatus);
+                      setStaffList(prev => prev.map(s => s.id === staff.id ? { ...s, workStatus: newStatus } : s));
+                      pushToast({
+                        type: 'success',
+                        title: 'Work Status Updated',
+                        description: `${staff.fullName} is now ${newStatus}.`
+                      });
+                    } catch {
+                      pushToast({ type: 'error', title: 'Failed to update status' });
+                    }
+                  }}
+                  className={`rounded-xl border px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer bg-slate-950 ${
+                    staff.workStatus === 'AVAILABLE' || staff.workStatus === 'ACTIVE'
+                      ? 'border-emerald-500/30 text-emerald-300'
+                      : staff.workStatus === 'ON_JOB' || staff.workStatus === 'BUSY'
+                      ? 'border-amber-500/30 text-amber-300'
+                      : 'border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  <option value="AVAILABLE">AVAILABLE (Auto-assign)</option>
+                  <option value="ON_JOB">ON JOB / BUSY</option>
+                  <option value="OFF_DUTY">OFF DUTY (Unavailable)</option>
+                </select>
               </div>
 
               <div>

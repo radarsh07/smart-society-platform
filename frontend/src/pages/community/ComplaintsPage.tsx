@@ -323,16 +323,20 @@ export function ComplaintsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Priority</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs uppercase tracking-wider text-slate-400">Priority</label>
+                    <span className="text-[10px] font-medium text-cyan-400">🤖 Auto-Analyzed</span>
+                  </div>
                   <select
                     className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400 text-sm"
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value as ComplaintPriority })}
                   >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="URGENT">URGENT</option>
+                    <option value="MEDIUM">Auto (Recommended)</option>
+                    <option value="LOW">LOW (Cosmetic / Minor)</option>
+                    <option value="MEDIUM">MEDIUM (General)</option>
+                    <option value="HIGH">HIGH (Water / Power / Lift)</option>
+                    <option value="URGENT">URGENT (Fire / Hazard / Safety)</option>
                   </select>
                 </div>
 

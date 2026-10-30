@@ -55,6 +55,10 @@ export const staffApi = {
     const res = await httpClient.post<ApiResponse<Staff>>('/community/staff', data);
     return res.data;
   },
+  updateStatus: async (id: number, workStatus: string): Promise<ApiResponse<Staff>> => {
+    const res = await httpClient.put<ApiResponse<Staff>>(`/community/staff/${id}/status?workStatus=${encodeURIComponent(workStatus)}`);
+    return res.data;
+  },
 };
 
 // 3. Maintenance Billing & Payments

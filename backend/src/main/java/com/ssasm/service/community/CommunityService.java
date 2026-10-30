@@ -30,6 +30,8 @@ public interface CommunityService {
 
   StaffResponse createStaff(StaffResponse request, String username, String ipAddress);
 
+  StaffResponse updateStaffStatus(Long staffId, String workStatus, String username, String ipAddress);
+
   PageResponse<StaffResponse> listStaff(int page, int size, String sortBy, String sortDirection);
 
   MaintenanceBillResponse createMaintenanceBill(Long residentId, String username, String ipAddress);
