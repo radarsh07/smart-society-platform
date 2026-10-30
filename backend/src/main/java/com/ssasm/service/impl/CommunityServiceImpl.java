@@ -150,6 +150,7 @@ public class CommunityServiceImpl implements CommunityService {
     complaint.setImageUrls(request.getImageUrls());
     complaint.setCreatedBy(username);
     complaint.setUpdatedBy(username);
+    autoAssignStaffIfAvailable(complaint, category, request.getSubject());
     Complaint saved = complaintRepository.save(complaint);
     domainAuditService.log(buildEvent(username, ipAddress, "CREATE", "Complaint", saved.getId().toString(), "SUCCESS", "Complaint created"));
     return communityMapper.toComplaintResponse(saved);
@@ -160,10 +161,18 @@ public class CommunityServiceImpl implements CommunityService {
     Complaint complaint = complaintRepository.findById(complaintId)
         .filter(c -> !c.isDeleted())
         .orElseThrow(() -> new ResourceNotFoundException("Complaint not found"));
-    if (staffId != null) {
+    if (staffId == null || staffId <= 0) {
+      complaint.setAssignedStaff(null);
+      complaint.setAssignedAt(null);
+      complaint.setStatus(com.ssasm.enums.ComplaintStatus.OPEN);
+    } else {
       Staff staff = staffRepository.findById(staffId).orElse(null);
       if (staff != null && staff.getUser() != null) {
         complaint.setAssignedStaff(staff.getUser());
+      } else if (staff != null) {
+        com.ssasm.entity.auth.User staffUser = userRepository.findByEmailIgnoreCase(staff.getEmail())
+            .orElseGet(() -> userRepository.findByUsernameIgnoreCase("staff").orElse(null));
+        complaint.setAssignedStaff(staffUser);
       } else {
         userRepository.findById(staffId).ifPresent(complaint::setAssignedStaff);
       }
@@ -496,6 +505,110 @@ public class CommunityServiceImpl implements CommunityService {
 
   private Resident findResident(Long residentId) {
     return findResident(residentId, null);
+  }
+
+  private void autoAssignStaffIfAvailable(Complaint complaint, ComplaintCategory category, String subject) {
+    try {
+      java.util.List<Staff> staffMembers = staffRepository.findByDeletedFalse();
+      if (staffMembers == null || staffMembers.isEmpty()) {
+        complaint.setStatus(com.ssasm.enums.ComplaintStatus.OPEN);
+        return;
+      }
+
+      String catName = (category != null && category.getName() != null) ? category.getName().toLowerCase().trim() : "";
+      String subjectText = (subject != null) ? subject.toLowerCase().trim() : "";
+
+      Staff bestMatch = null;
+      int bestScore = 0;
+
+      for (Staff s : staffMembers) {
+        if (s == null || s.isDeleted()) {
+          continue;
+        }
+
+        String status = s.getWorkStatus();
+        boolean isAvailable = status == null || status.isBlank()
+            || "AVAILABLE".equalsIgnoreCase(status.trim())
+            || "ACTIVE".equalsIgnoreCase(status.trim())
+            || "ON_DUTY".equalsIgnoreCase(status.trim());
+
+        if (!isAvailable) {
+          continue;
+        }
+
+        int score = calculateSpecializationMatchScore(catName, subjectText, s.getSpecialization());
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = s;
+        }
+      }
+
+      if (bestMatch != null && bestScore > 0) {
+        com.ssasm.entity.auth.User staffUser = bestMatch.getUser();
+        if (staffUser == null) {
+          staffUser = userRepository.findByEmailIgnoreCase(bestMatch.getEmail())
+              .orElseGet(() -> userRepository.findByUsernameIgnoreCase("staff").orElse(null));
+        }
+        if (staffUser != null) {
+          complaint.setAssignedStaff(staffUser);
+          complaint.setAssignedAt(LocalDateTime.now());
+          complaint.setStatus(com.ssasm.enums.ComplaintStatus.IN_PROGRESS);
+          return;
+        }
+      }
+
+      complaint.setStatus(com.ssasm.enums.ComplaintStatus.OPEN);
+    } catch (Exception ex) {
+      complaint.setStatus(com.ssasm.enums.ComplaintStatus.OPEN);
+    }
+  }
+
+  private int calculateSpecializationMatchScore(String catName, String subject, String specialization) {
+    if (specialization == null || specialization.isBlank()) {
+      return 5;
+    }
+    String spec = specialization.toLowerCase().trim();
+    int score = 0;
+
+    if (catName.contains(spec) || spec.contains(catName)) {
+      score += 100;
+    }
+
+    boolean isElectricReq = catName.contains("electric") || subject.contains("electric") || subject.contains("power") || subject.contains("light") || subject.contains("wire") || subject.contains("switch") || subject.contains("fuse");
+    boolean isElectricStaff = spec.contains("electric") || spec.contains("wire") || spec.contains("light") || spec.contains("power");
+    if (isElectricReq && isElectricStaff) {
+      score += 80;
+    }
+
+    boolean isPlumbingReq = catName.contains("plumb") || subject.contains("plumb") || subject.contains("pipe") || subject.contains("leak") || subject.contains("tap") || subject.contains("water") || subject.contains("drain");
+    boolean isPlumbingStaff = spec.contains("plumb") || spec.contains("pipe") || spec.contains("water");
+    if (isPlumbingReq && isPlumbingStaff) {
+      score += 80;
+    }
+
+    boolean isLiftReq = catName.contains("lift") || catName.contains("elevator") || subject.contains("lift") || subject.contains("elevator");
+    boolean isLiftStaff = spec.contains("lift") || spec.contains("elevator");
+    if (isLiftReq && isLiftStaff) {
+      score += 80;
+    }
+
+    boolean isCleanReq = catName.contains("clean") || catName.contains("waste") || subject.contains("garbage") || subject.contains("clean") || subject.contains("dust");
+    boolean isCleanStaff = spec.contains("clean") || spec.contains("waste") || spec.contains("housekeep") || spec.contains("janitor");
+    if (isCleanReq && isCleanStaff) {
+      score += 80;
+    }
+
+    boolean isSecReq = catName.contains("security") || catName.contains("access") || subject.contains("gate") || subject.contains("intercom");
+    boolean isSecStaff = spec.contains("security") || spec.contains("guard") || spec.contains("access");
+    if (isSecReq && isSecStaff) {
+      score += 80;
+    }
+
+    if (spec.contains("general") || spec.contains("maintenance") || spec.contains("lead")) {
+      score += 20;
+    }
+
+    return score;
   }
 
   private DomainAuditEvent buildEvent(String username, String ipAddress, String action, String entityName, String entityId, String result, String detail) {

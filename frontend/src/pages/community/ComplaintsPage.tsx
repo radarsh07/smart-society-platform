@@ -108,17 +108,26 @@ export function ComplaintsPage() {
   };
 
   const handleAssignStaff = async (complaintId: number) => {
-    if (!selectedStaffId) return;
     try {
-      await complaintApi.assignComplaint(complaintId, selectedStaffId);
-      const staffObj = staffList.find(s => s.id === selectedStaffId);
-      setComplaints(prev => prev.map(c => c.id === complaintId ? {
-        ...c,
-        assignedStaffId: selectedStaffId,
-        assignedStaffName: staffObj ? `${staffObj.fullName} (${staffObj.specialization})` : 'Assigned Technician',
-        status: 'IN_PROGRESS'
-      } : c));
-      pushToast({ type: 'success', title: 'Staff Technician Assigned 👷', description: 'Complaint status set to IN_PROGRESS.' });
+      await complaintApi.assignComplaint(complaintId, selectedStaffId > 0 ? selectedStaffId : undefined);
+      if (selectedStaffId === 0) {
+        setComplaints(prev => prev.map(c => c.id === complaintId ? {
+          ...c,
+          assignedStaffId: undefined,
+          assignedStaffName: undefined,
+          status: 'OPEN'
+        } : c));
+        pushToast({ type: 'info', title: 'Ticket Unassigned', description: 'Complaint returned to Open queue.' });
+      } else {
+        const staffObj = staffList.find(s => s.id === selectedStaffId);
+        setComplaints(prev => prev.map(c => c.id === complaintId ? {
+          ...c,
+          assignedStaffId: selectedStaffId,
+          assignedStaffName: staffObj ? `${staffObj.fullName} (${staffObj.specialization || 'Staff'})` : 'Assigned Technician',
+          status: 'IN_PROGRESS'
+        } : c));
+        pushToast({ type: 'success', title: 'Staff Technician Assigned 👷', description: 'Technician updated and status set to IN_PROGRESS.' });
+      }
       setAssigningId(null);
     } catch {
       pushToast({ type: 'error', title: 'Assignment failed' });
@@ -200,10 +209,17 @@ export function ComplaintsPage() {
 
                 <div className="flex justify-between items-center">
                   <span>Assigned Staff:</span>
-                  <span className="font-medium text-cyan-300">{item.assignedStaffName || 'Unassigned'}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-cyan-300">{item.assignedStaffName || 'Unassigned (Open Queue)'}</span>
+                    {item.assignedStaffName && (
+                      <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
+                        Assigned
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Society Admin Staff Assignment Controls */}
+                {/* Society Admin Staff Assignment & Reassignment Controls */}
                 {role === 'ADMIN' && (
                   <div className="pt-2 border-t border-white/5 space-y-2">
                     {assigningId === item.id ? (
@@ -213,9 +229,11 @@ export function ComplaintsPage() {
                           value={selectedStaffId}
                           onChange={(e) => setSelectedStaffId(Number(e.target.value))}
                         >
-                          <option value={0}>Select Technician</option>
+                          <option value={0}>-- Unassigned (Open Queue) --</option>
                           {staffList.map(staff => (
-                            <option key={staff.id} value={staff.id}>{staff.fullName} ({staff.specialization})</option>
+                            <option key={staff.id} value={staff.id}>
+                              {staff.fullName} ({staff.specialization || 'General'}) {staff.workStatus && staff.workStatus !== 'AVAILABLE' ? `[${staff.workStatus}]` : ''}
+                            </option>
                           ))}
                         </select>
                         <button
@@ -233,10 +251,10 @@ export function ComplaintsPage() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => { setAssigningId(item.id); setSelectedStaffId(item.assignedStaffId || (staffList[0]?.id ?? 0)); }}
+                        onClick={() => { setAssigningId(item.id); setSelectedStaffId(item.assignedStaffId || 0); }}
                         className="w-full rounded-xl border border-purple-500/30 bg-purple-500/10 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-500/20"
                       >
-                        👷 Assign Society Staff Technician
+                        {item.assignedStaffName ? '🔄 Reassign / Change Technician' : '👷 Assign Society Staff Technician'}
                       </button>
                     )}
                   </div>

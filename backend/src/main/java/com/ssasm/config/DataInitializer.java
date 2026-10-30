@@ -53,7 +53,9 @@ public class DataInitializer {
         // 2. Ensure official department login accounts exist (Staff, Guard, Admin, Resident)
         getOrCreateUser(userRepository, passwordEncoder, "admin", "admin@society.local", "+91 98765 00001", "Society Administrator", adminRole, "admin123");
         getOrCreateUser(userRepository, passwordEncoder, "guard", "guard@society.local", "+91 98765 00003", "Gate Security Guard", guardRole, "guard123");
-        getOrCreateUser(userRepository, passwordEncoder, "staff", "staff@society.local", "+91 98765 00004", "Maintenance Staff", staffRole, "staff123");
+        User defaultStaffUser = getOrCreateUser(userRepository, passwordEncoder, "staff", "staff@society.local", "+91 98765 00004", "Maintenance Staff", staffRole, "staff123");
+        User electricianUser = getOrCreateUser(userRepository, passwordEncoder, "electrician", "electrician@society.local", "+91 98765 00011", "Vikram Singh (Electrician)", staffRole, "staff123");
+        User plumberUser = getOrCreateUser(userRepository, passwordEncoder, "plumber", "plumber@society.local", "+91 98765 00012", "Ramesh Rao (Plumber)", staffRole, "staff123");
         User abhishekUser = getOrCreateUser(userRepository, passwordEncoder, "abhishek", "abhishek@society.local", "+919989786536", "Abhishek", residentRole, "abhishek123");
 
         // Ensure abhishek resident account has known password abhishek123 if previously existed with another password
@@ -117,19 +119,57 @@ public class DataInitializer {
           residentRepository.save(resident);
         }
 
-        // 3. Ensure Staff entity exists for staff user
-        userRepository.findByUsernameIgnoreCase("staff").ifPresent(staffUser -> {
-          if (staffRepository.count() == 0) {
-            com.ssasm.entity.community.Staff staffMember = new com.ssasm.entity.community.Staff();
-            staffMember.setFullName("Rajesh Kumar (Maintenance Lead)");
-            staffMember.setSpecialization("Electrical & Plumbing");
-            staffMember.setPhoneNumber("+91 98765 00004");
-            staffMember.setEmail("staff@society.local");
-            staffMember.setWorkStatus("AVAILABLE");
-            staffMember.setUser(staffUser);
-            staffMember.setCreatedBy("SYSTEM");
-            staffMember.setUpdatedBy("SYSTEM");
-            staffRepository.save(staffMember);
+        // 3. Ensure Staff entities exist for staff users
+        if (staffRepository.count() == 0) {
+          com.ssasm.entity.community.Staff leadStaff = new com.ssasm.entity.community.Staff();
+          leadStaff.setFullName("Rajesh Kumar (Maintenance Lead)");
+          leadStaff.setSpecialization("General Maintenance");
+          leadStaff.setPhoneNumber("+91 98765 00004");
+          leadStaff.setEmail("staff@society.local");
+          leadStaff.setWorkStatus("AVAILABLE");
+          leadStaff.setUser(defaultStaffUser);
+          leadStaff.setCreatedBy("SYSTEM");
+          leadStaff.setUpdatedBy("SYSTEM");
+          staffRepository.save(leadStaff);
+        }
+
+        // Ensure dedicated electrician staff exists
+        boolean hasElectrician = staffRepository.findByDeletedFalse().stream()
+            .anyMatch(s -> s.getSpecialization() != null && s.getSpecialization().toLowerCase().contains("electric"));
+        if (!hasElectrician) {
+          com.ssasm.entity.community.Staff electricStaff = new com.ssasm.entity.community.Staff();
+          electricStaff.setFullName("Vikram Singh (Certified Electrician)");
+          electricStaff.setSpecialization("Electrical Maintenance");
+          electricStaff.setPhoneNumber("+91 98765 00011");
+          electricStaff.setEmail("electrician@society.local");
+          electricStaff.setWorkStatus("AVAILABLE");
+          electricStaff.setUser(electricianUser);
+          electricStaff.setCreatedBy("SYSTEM");
+          electricStaff.setUpdatedBy("SYSTEM");
+          staffRepository.save(electricStaff);
+        }
+
+        // Ensure dedicated plumber staff exists
+        boolean hasPlumber = staffRepository.findByDeletedFalse().stream()
+            .anyMatch(s -> s.getSpecialization() != null && s.getSpecialization().toLowerCase().contains("plumb"));
+        if (!hasPlumber) {
+          com.ssasm.entity.community.Staff plumbStaff = new com.ssasm.entity.community.Staff();
+          plumbStaff.setFullName("Ramesh Rao (Plumbing Specialist)");
+          plumbStaff.setSpecialization("Plumbing Services");
+          plumbStaff.setPhoneNumber("+91 98765 00012");
+          plumbStaff.setEmail("plumber@society.local");
+          plumbStaff.setWorkStatus("AVAILABLE");
+          plumbStaff.setUser(plumberUser);
+          plumbStaff.setCreatedBy("SYSTEM");
+          plumbStaff.setUpdatedBy("SYSTEM");
+          staffRepository.save(plumbStaff);
+        }
+
+        // Make sure all existing staff default to AVAILABLE if workStatus is empty
+        staffRepository.findByDeletedFalse().forEach(s -> {
+          if (s.getWorkStatus() == null || s.getWorkStatus().isBlank()) {
+            s.setWorkStatus("AVAILABLE");
+            staffRepository.save(s);
           }
         });
 

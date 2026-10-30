@@ -31,6 +31,12 @@ import com.ssasm.enums.ComplaintStatus;
 @Component
 public class CommunityMapper {
 
+  private final com.ssasm.repository.community.StaffRepository staffRepository;
+
+  public CommunityMapper(com.ssasm.repository.community.StaffRepository staffRepository) {
+    this.staffRepository = staffRepository;
+  }
+
   public ComplaintResponse toComplaintResponse(Complaint complaint) {
     if (complaint == null) {
       return null;
@@ -55,6 +61,28 @@ public class CommunityMapper {
       images.addAll(complaint.getImageUrls());
     }
 
+    Long assignedStaffId = null;
+    String assignedStaffName = null;
+    if (complaint.getAssignedStaff() != null) {
+      assignedStaffId = complaint.getAssignedStaff().getId();
+      assignedStaffName = complaint.getAssignedStaff().getFullName();
+      if (staffRepository != null) {
+        try {
+          java.util.Optional<Staff> sOpt = staffRepository.findByUserIdAndDeletedFalse(complaint.getAssignedStaff().getId());
+          if (sOpt.isPresent()) {
+            Staff s = sOpt.get();
+            assignedStaffId = s.getId();
+            if (s.getSpecialization() != null && !s.getSpecialization().isBlank()) {
+              assignedStaffName = s.getFullName() + " (" + s.getSpecialization() + ")";
+            } else {
+              assignedStaffName = s.getFullName();
+            }
+          }
+        } catch (Exception ignored) {
+        }
+      }
+    }
+
     return ComplaintResponse.builder()
         .id(complaint.getId())
         .ticketNumber(complaint.getTicketNumber() != null ? complaint.getTicketNumber() : "CMP-" + complaint.getId())
@@ -66,8 +94,8 @@ public class CommunityMapper {
         .description(complaint.getDescription() != null ? complaint.getDescription() : "")
         .priority(complaint.getPriority() != null ? complaint.getPriority() : ComplaintPriority.MEDIUM)
         .status(complaint.getStatus() != null ? complaint.getStatus() : ComplaintStatus.OPEN)
-        .assignedStaffId(complaint.getAssignedStaff() != null ? complaint.getAssignedStaff().getId() : null)
-        .assignedStaffName(complaint.getAssignedStaff() != null ? complaint.getAssignedStaff().getFullName() : null)
+        .assignedStaffId(assignedStaffId)
+        .assignedStaffName(assignedStaffName)
         .assignedAt(complaint.getAssignedAt())
         .resolvedAt(complaint.getResolvedAt())
         .closedAt(complaint.getClosedAt())

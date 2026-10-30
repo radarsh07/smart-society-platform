@@ -42,7 +42,7 @@ public class Staff extends BaseEntity {
   @Column(name = "work_status", length = 100)
   private String workStatus = "AVAILABLE";
 
-  @OneToOne(fetch = FetchType.LAZY)
+  @OneToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id")
   private User user;
 }
