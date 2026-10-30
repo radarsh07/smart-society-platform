@@ -1,5 +1,7 @@
 package com.ssasm.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,11 +17,13 @@ import com.ssasm.repository.auth.RoleRepository;
 import com.ssasm.repository.auth.UserRepository;
 
 /**
- * Production-ready bootstrapper that only sets up core roles and the master Administrator account.
- * No mock or test societies, flats, residents, or complaints are populated.
+ * Production-ready bootstrapper that sets up core roles and default accounts.
+ * Safely handles cloud databases that may be delayed or sleeping on startup.
  */
 @Configuration
 public class DataInitializer {
+
+  private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
   @Bean
   @Order(2)
@@ -37,149 +41,156 @@ public class DataInitializer {
       com.ssasm.repository.society.FlatRepository flatRepository,
       com.ssasm.repository.society.ResidentRepository residentRepository) {
     return args -> {
-      // 1. Ensure core roles exist
-      Role adminRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_ADMIN, "Society Admin Authority");
-      Role residentRole = getOrCreateRole(roleRepository, RoleName.RESIDENT, "Resident Account");
-      Role guardRole = getOrCreateRole(roleRepository, RoleName.SECURITY_GUARD, "Gate Security Guard Account");
-      Role staffRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_STAFF, "Society Maintenance Staff Account");
+      try {
+        log.info("Starting initial database role and admin account verification...");
 
-      // 2. Ensure official department login accounts exist (Staff, Guard, Admin, Resident)
-      getOrCreateUser(userRepository, passwordEncoder, "admin", "admin@society.local", "+91 98765 00001", "Society Administrator", adminRole, "admin123");
-      getOrCreateUser(userRepository, passwordEncoder, "guard", "guard@society.local", "+91 98765 00003", "Gate Security Guard", guardRole, "guard123");
-      getOrCreateUser(userRepository, passwordEncoder, "staff", "staff@society.local", "+91 98765 00004", "Maintenance Staff", staffRole, "staff123");
-      User abhishekUser = getOrCreateUser(userRepository, passwordEncoder, "abhishek", "abhishek@society.local", "+919989786536", "Abhishek", residentRole, "abhishek123");
+        // 1. Ensure core roles exist
+        Role adminRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_ADMIN, "Society Admin Authority");
+        Role residentRole = getOrCreateRole(roleRepository, RoleName.RESIDENT, "Resident Account");
+        Role guardRole = getOrCreateRole(roleRepository, RoleName.SECURITY_GUARD, "Gate Security Guard Account");
+        Role staffRole = getOrCreateRole(roleRepository, RoleName.SOCIETY_STAFF, "Society Maintenance Staff Account");
 
-      // Ensure abhishek resident account has known password abhishek123 if previously existed with another password
-      if (!passwordEncoder.matches("abhishek123", abhishekUser.getPasswordHash())) {
-        abhishekUser.setPasswordHash(passwordEncoder.encode("abhishek123"));
-        abhishekUser = userRepository.save(abhishekUser);
-      }
+        // 2. Ensure official department login accounts exist (Staff, Guard, Admin, Resident)
+        getOrCreateUser(userRepository, passwordEncoder, "admin", "admin@society.local", "+91 98765 00001", "Society Administrator", adminRole, "admin123");
+        getOrCreateUser(userRepository, passwordEncoder, "guard", "guard@society.local", "+91 98765 00003", "Gate Security Guard", guardRole, "guard123");
+        getOrCreateUser(userRepository, passwordEncoder, "staff", "staff@society.local", "+91 98765 00004", "Maintenance Staff", staffRole, "staff123");
+        User abhishekUser = getOrCreateUser(userRepository, passwordEncoder, "abhishek", "abhishek@society.local", "+919989786536", "Abhishek", residentRole, "abhishek123");
 
-      // Ensure default Society, Building, Flat, and Resident exist
-      com.ssasm.entity.society.Society defaultSociety = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElseGet(() -> {
-        com.ssasm.entity.society.Society s = new com.ssasm.entity.society.Society();
-        s.setSocietyName("SHIV ELITE TOWNSHIP");
-        s.setRegistrationNumber("REG-SOC-2026-001");
-        s.setAddressLine1("Sector 42, Golf Course Road");
-        s.setCity("Gurugram");
-        s.setState("Haryana");
-        s.setPincode("122002");
-        s.setContactPhone("+91 98765 00001");
-        s.setCreatedBy("SYSTEM");
-        s.setUpdatedBy("SYSTEM");
-        return societyRepository.save(s);
-      });
-
-      com.ssasm.entity.society.Building defaultBuilding = buildingRepository.findAll().stream().filter(b -> !b.isDeleted()).findFirst().orElseGet(() -> {
-        com.ssasm.entity.society.Building b = new com.ssasm.entity.society.Building();
-        b.setBuildingName("Lavender");
-        b.setBuildingCode("LAV");
-        b.setTotalFloors(10);
-        b.setSociety(defaultSociety);
-        b.setCreatedBy("SYSTEM");
-        b.setUpdatedBy("SYSTEM");
-        return buildingRepository.save(b);
-      });
-
-      com.ssasm.entity.society.Flat defaultFlat = flatRepository.findAll().stream().filter(f -> !f.isDeleted()).findFirst().orElseGet(() -> {
-        com.ssasm.entity.society.Flat f = new com.ssasm.entity.society.Flat();
-        f.setFlatNumber("101");
-        f.setFlatType("3BHK");
-        f.setFloorNumber(1);
-        f.setCarpetArea(1450.0);
-        f.setStatus("OCCUPIED");
-        f.setBuilding(defaultBuilding);
-        f.setCreatedBy("SYSTEM");
-        f.setUpdatedBy("SYSTEM");
-        return flatRepository.save(f);
-      });
-
-      final User finalAbhishekUser = abhishekUser;
-      final com.ssasm.entity.society.Flat finalDefaultFlat = defaultFlat;
-      if (residentRepository.count() == 0) {
-        com.ssasm.entity.society.Resident resident = new com.ssasm.entity.society.Resident();
-        resident.setUser(finalAbhishekUser);
-        resident.setFlat(finalDefaultFlat);
-        resident.setFullName("Abhishek");
-        resident.setEmail("abhishek@society.local");
-        resident.setPhoneNumber("+919989786536");
-        resident.setOccupancyType("OWNER");
-        resident.setResidentStatus("ACTIVE");
-        resident.setCreatedBy("SYSTEM");
-        resident.setUpdatedBy("SYSTEM");
-        residentRepository.save(resident);
-      }
-
-      // 3. Ensure Staff entity exists for staff user
-      userRepository.findByUsernameIgnoreCase("staff").ifPresent(staffUser -> {
-        if (staffRepository.count() == 0) {
-          com.ssasm.entity.community.Staff staffMember = new com.ssasm.entity.community.Staff();
-          staffMember.setFullName("Rajesh Kumar (Maintenance Lead)");
-          staffMember.setSpecialization("Electrical & Plumbing");
-          staffMember.setPhoneNumber("+91 98765 00004");
-          staffMember.setEmail("staff@society.local");
-          staffMember.setWorkStatus("AVAILABLE");
-          staffMember.setUser(staffUser);
-          staffMember.setCreatedBy("SYSTEM");
-          staffMember.setUpdatedBy("SYSTEM");
-          staffRepository.save(staffMember);
+        // Ensure abhishek resident account has known password abhishek123 if previously existed with another password
+        if (!passwordEncoder.matches("abhishek123", abhishekUser.getPasswordHash())) {
+          abhishekUser.setPasswordHash(passwordEncoder.encode("abhishek123"));
+          abhishekUser = userRepository.save(abhishekUser);
         }
-      });
 
-      // 4. Seed master Complaint Categories if empty
-      if (complaintCategoryRepository.count() == 0) {
-        String[][] categories = {
-            {"Plumbing", "Pipe leak, tap breakdown, water supply issues"},
-            {"Electrical", "Power tripping, lights, switchboard faults"},
-            {"Elevator / Lift", "Lift stopped, abnormal vibration, alarm"},
-            {"Cleanliness & Waste", "Garbage clearance, corridor cleaning, pest control"},
-            {"Security & Access", "Gate pass issue, intercom fault, trespassing"},
-            {"General Maintenance", "Common area amenities, painting, civil maintenance"}
-        };
-        for (String[] cat : categories) {
-          com.ssasm.entity.community.ComplaintCategory c = new com.ssasm.entity.community.ComplaintCategory();
-          c.setName(cat[0]);
-          c.setDescription(cat[1]);
-          c.setCreatedBy("SYSTEM");
-          c.setUpdatedBy("SYSTEM");
-          complaintCategoryRepository.save(c);
-        }
-      }
+        // Ensure default Society, Building, Flat, and Resident exist
+        com.ssasm.entity.society.Society defaultSociety = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElseGet(() -> {
+          com.ssasm.entity.society.Society s = new com.ssasm.entity.society.Society();
+          s.setSocietyName("SHIV ELITE TOWNSHIP");
+          s.setRegistrationNumber("REG-SOC-2026-001");
+          s.setAddressLine1("Sector 42, Golf Course Road");
+          s.setCity("Gurugram");
+          s.setState("Haryana");
+          s.setPincode("122002");
+          s.setContactPhone("+91 98765 00001");
+          s.setCreatedBy("SYSTEM");
+          s.setUpdatedBy("SYSTEM");
+          return societyRepository.save(s);
+        });
 
-      // 5. Seed Facilities if empty
-      if (facilityRepository.count() == 0) {
-        com.ssasm.entity.society.Society society = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElse(null);
-        Object[][] facilities = {
-            {"Clubhouse", "Air-conditioned hall with audio system & party seating.", 120},
-            {"Swimming Pool", "Olympic-size pool with safety guard & sun loungers.", 60},
-            {"Community Gymnasium", "Fully equipped weights & cardio fitness station.", 90},
-            {"Tennis & Badminton Court", "Synthetic turf court with night floodlights.", 60}
-        };
-        for (Object[] fac : facilities) {
-          com.ssasm.entity.community.Facility f = new com.ssasm.entity.community.Facility();
-          f.setName((String) fac[0]);
-          f.setDescription((String) fac[1]);
-          f.setBookingDurationMinutes((Integer) fac[2]);
-          f.setSociety(society);
+        com.ssasm.entity.society.Building defaultBuilding = buildingRepository.findAll().stream().filter(b -> !b.isDeleted()).findFirst().orElseGet(() -> {
+          com.ssasm.entity.society.Building b = new com.ssasm.entity.society.Building();
+          b.setBuildingName("Lavender");
+          b.setBuildingCode("LAV");
+          b.setTotalFloors(10);
+          b.setSociety(defaultSociety);
+          b.setCreatedBy("SYSTEM");
+          b.setUpdatedBy("SYSTEM");
+          return buildingRepository.save(b);
+        });
+
+        com.ssasm.entity.society.Flat defaultFlat = flatRepository.findAll().stream().filter(f -> !f.isDeleted()).findFirst().orElseGet(() -> {
+          com.ssasm.entity.society.Flat f = new com.ssasm.entity.society.Flat();
+          f.setFlatNumber("101");
+          f.setFlatType("3BHK");
+          f.setFloorNumber(1);
+          f.setCarpetArea(1450.0);
+          f.setStatus("OCCUPIED");
+          f.setBuilding(defaultBuilding);
           f.setCreatedBy("SYSTEM");
           f.setUpdatedBy("SYSTEM");
-          facilityRepository.save(f);
-        }
-      }
+          return flatRepository.save(f);
+        });
 
-      // 6. Seed Parking Slots if empty
-      if (parkingSlotRepository.count() == 0) {
-        com.ssasm.entity.society.Society society = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElse(null);
-        for (int i = 1; i <= 10; i++) {
-          com.ssasm.entity.community.ParkingSlot slot = new com.ssasm.entity.community.ParkingSlot();
-          slot.setSlotNumber("P-" + String.format("%02d", i));
-          slot.setSlotType(i <= 3 ? "COVERED" : "STANDARD");
-          slot.setOccupied(false);
-          slot.setSociety(society);
-          slot.setCreatedBy("SYSTEM");
-          slot.setUpdatedBy("SYSTEM");
-          parkingSlotRepository.save(slot);
+        final User finalAbhishekUser = abhishekUser;
+        final com.ssasm.entity.society.Flat finalDefaultFlat = defaultFlat;
+        if (residentRepository.count() == 0) {
+          com.ssasm.entity.society.Resident resident = new com.ssasm.entity.society.Resident();
+          resident.setUser(finalAbhishekUser);
+          resident.setFlat(finalDefaultFlat);
+          resident.setFullName("Abhishek");
+          resident.setEmail("abhishek@society.local");
+          resident.setPhoneNumber("+919989786536");
+          resident.setOccupancyType("OWNER");
+          resident.setResidentStatus("ACTIVE");
+          resident.setCreatedBy("SYSTEM");
+          resident.setUpdatedBy("SYSTEM");
+          residentRepository.save(resident);
         }
+
+        // 3. Ensure Staff entity exists for staff user
+        userRepository.findByUsernameIgnoreCase("staff").ifPresent(staffUser -> {
+          if (staffRepository.count() == 0) {
+            com.ssasm.entity.community.Staff staffMember = new com.ssasm.entity.community.Staff();
+            staffMember.setFullName("Rajesh Kumar (Maintenance Lead)");
+            staffMember.setSpecialization("Electrical & Plumbing");
+            staffMember.setPhoneNumber("+91 98765 00004");
+            staffMember.setEmail("staff@society.local");
+            staffMember.setWorkStatus("AVAILABLE");
+            staffMember.setUser(staffUser);
+            staffMember.setCreatedBy("SYSTEM");
+            staffMember.setUpdatedBy("SYSTEM");
+            staffRepository.save(staffMember);
+          }
+        });
+
+        // 4. Seed master Complaint Categories if empty
+        if (complaintCategoryRepository.count() == 0) {
+          String[][] categories = {
+              {"Plumbing", "Pipe leak, tap breakdown, water supply issues"},
+              {"Electrical", "Power tripping, lights, switchboard faults"},
+              {"Elevator / Lift", "Lift stopped, abnormal vibration, alarm"},
+              {"Cleanliness & Waste", "Garbage clearance, corridor cleaning, pest control"},
+              {"Security & Access", "Gate pass issue, intercom fault, trespassing"},
+              {"General Maintenance", "Common area amenities, painting, civil maintenance"}
+          };
+          for (String[] cat : categories) {
+            com.ssasm.entity.community.ComplaintCategory c = new com.ssasm.entity.community.ComplaintCategory();
+            c.setName(cat[0]);
+            c.setDescription(cat[1]);
+            c.setCreatedBy("SYSTEM");
+            c.setUpdatedBy("SYSTEM");
+            complaintCategoryRepository.save(c);
+          }
+        }
+
+        // 5. Seed Facilities if empty
+        if (facilityRepository.count() == 0) {
+          com.ssasm.entity.society.Society society = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElse(null);
+          Object[][] facilities = {
+              {"Clubhouse", "Air-conditioned hall with audio system & party seating.", 120},
+              {"Swimming Pool", "Olympic-size pool with safety guard & sun loungers.", 60},
+              {"Community Gymnasium", "Fully equipped weights & cardio fitness station.", 90},
+              {"Tennis & Badminton Court", "Synthetic turf court with night floodlights.", 60}
+          };
+          for (Object[] fac : facilities) {
+            com.ssasm.entity.community.Facility f = new com.ssasm.entity.community.Facility();
+            f.setName((String) fac[0]);
+            f.setDescription((String) fac[1]);
+            f.setBookingDurationMinutes((Integer) fac[2]);
+            f.setSociety(society);
+            f.setCreatedBy("SYSTEM");
+            f.setUpdatedBy("SYSTEM");
+            facilityRepository.save(f);
+          }
+        }
+
+        // 6. Seed Parking Slots if empty
+        if (parkingSlotRepository.count() == 0) {
+          com.ssasm.entity.society.Society society = societyRepository.findAll().stream().filter(s -> !s.isDeleted()).findFirst().orElse(null);
+          for (int i = 1; i <= 10; i++) {
+            com.ssasm.entity.community.ParkingSlot slot = new com.ssasm.entity.community.ParkingSlot();
+            slot.setSlotNumber("P-" + String.format("%02d", i));
+            slot.setSlotType(i <= 3 ? "COVERED" : "STANDARD");
+            slot.setOccupied(false);
+            slot.setSociety(society);
+            slot.setCreatedBy("SYSTEM");
+            slot.setUpdatedBy("SYSTEM");
+            parkingSlotRepository.save(slot);
+          }
+        }
+        log.info("Database bootstrap completed successfully.");
+      } catch (Exception ex) {
+        log.warn("Database initialization deferred: unable to connect to database during startup ({}). The server will remain running.", ex.getMessage());
       }
     };
   }

@@ -7,6 +7,7 @@ if (!apiBase.endsWith('/api') && !apiBase.endsWith('/api/')) {
 
 export const httpClient = axios.create({
   baseURL: apiBase,
+  timeout: 15000, // 15s timeout prevents UI from getting stuck indefinitely on cold starts/downtime
   headers: {
     'Content-Type': 'application/json',
   },

@@ -73,6 +73,23 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
+  @ExceptionHandler({
+      org.springframework.dao.DataAccessException.class,
+      java.sql.SQLException.class,
+      org.hibernate.HibernateException.class
+  })
+  public ResponseEntity<ErrorResponse> handleDatabaseExceptions(
+      Exception exception,
+      HttpServletRequest request) {
+    ErrorResponse response = ErrorResponse.builder()
+        .errorCode("DATABASE_UNAVAILABLE")
+        .message("Database service is currently unreachable. Please verify that your cloud MySQL database is active.")
+        .path(request.getRequestURI())
+        .timestamp(LocalDateTime.now())
+        .build();
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleUnexpectedException(
       Exception exception,

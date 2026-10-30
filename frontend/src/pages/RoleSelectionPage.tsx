@@ -86,8 +86,14 @@ export function RoleSelectionPage() {
       const targetPath = defaultPaths[authenticatedRole] || '/dashboard/admin';
       navigate(targetPath);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Invalid username or password. Please try again.';
-      setErrorMessage(msg);
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setErrorMessage('Backend server is taking too long to respond (likely waking up from Render cold start). Please wait 20 seconds and click Sign In again.');
+      } else if (!err.response) {
+        setErrorMessage('Cannot connect to backend server. Please verify your Render service is active.');
+      } else {
+        const msg = err?.response?.data?.message || 'Invalid username or password. Please try again.';
+        setErrorMessage(msg);
+      }
     } finally {
       setLoading(false);
     }
