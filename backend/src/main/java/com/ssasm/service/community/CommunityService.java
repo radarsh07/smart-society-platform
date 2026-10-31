@@ -4,11 +4,13 @@ import com.ssasm.dto.community.ComplaintRequest;
 import com.ssasm.dto.community.ComplaintResponse;
 import com.ssasm.dto.community.FacilityBookingRequest;
 import com.ssasm.dto.community.FacilityBookingResponse;
+import com.ssasm.dto.community.GenerateSocietyBillsRequest;
 import com.ssasm.dto.community.MaintenanceBillResponse;
 import com.ssasm.dto.community.MarketplaceItemRequest;
 import com.ssasm.dto.community.MarketplaceItemResponse;
 import com.ssasm.dto.community.ParcelResponse;
 import com.ssasm.dto.community.ParkingAllocationResponse;
+import com.ssasm.dto.community.PaymentResponse;
 import com.ssasm.dto.community.ServiceBookingRequest;
 import com.ssasm.dto.community.ServiceBookingResponse;
 import com.ssasm.dto.community.StaffResponse;
@@ -36,7 +38,11 @@ public interface CommunityService {
 
   MaintenanceBillResponse createMaintenanceBill(Long residentId, String username, String ipAddress);
 
-  PageResponse<MaintenanceBillResponse> listMaintenanceBills(int page, int size, String sortBy, String sortDirection);
+  java.util.List<MaintenanceBillResponse> generateBillsForAllResidents(GenerateSocietyBillsRequest request, String username, String ipAddress);
+
+  PageResponse<MaintenanceBillResponse> listMaintenanceBills(int page, int size, String sortBy, String sortDirection, String username, String role);
+
+  PageResponse<PaymentResponse> listPayments(int page, int size, String sortBy, String sortDirection, String username, String role);
 
   VehicleResponse createVehicle(VehicleRequest request, String username, String ipAddress);
 
@@ -66,5 +72,5 @@ public interface CommunityService {
 
   PageResponse<ParcelResponse> listParcels(int page, int size, String sortBy, String sortDirection);
 
-  com.ssasm.dto.community.PaymentResponse processPayment(com.ssasm.dto.community.PaymentRequest request, String username, String ipAddress);
+  PaymentResponse processPayment(com.ssasm.dto.community.PaymentRequest request, String username, String ipAddress);
 }

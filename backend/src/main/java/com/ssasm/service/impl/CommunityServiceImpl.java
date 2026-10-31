@@ -254,6 +254,61 @@ public class CommunityServiceImpl implements CommunityService {
   }
 
   @Override
+  public java.util.List<MaintenanceBillResponse> generateBillsForAllResidents(
+      com.ssasm.dto.community.GenerateSocietyBillsRequest request, String username, String ipAddress) {
+    java.util.List<Resident> residents = residentRepository.findByDeletedFalse();
+    if (residents.isEmpty()) {
+      throw new BadRequestException("No registered residents found in society to generate bills for.");
+    }
+
+    String billTypeName = request.getBillType() != null && !request.getBillType().isBlank()
+        ? request.getBillType().trim()
+        : "Monthly Society Maintenance";
+    java.math.BigDecimal amount = request.getAmount() != null
+        ? request.getAmount()
+        : new java.math.BigDecimal("2500.00");
+    java.time.LocalDate dueDate = request.getDueDate() != null
+        ? request.getDueDate()
+        : java.time.LocalDate.now().plusDays(15);
+
+    java.util.List<MaintenanceBillResponse> generatedList = new java.util.ArrayList<>();
+
+    for (Resident res : residents) {
+      MaintenanceBill bill = new MaintenanceBill();
+      bill.setResident(res);
+      bill.setBillNumber("MB-" + System.currentTimeMillis() % 1000000 + "-" + res.getId());
+      bill.setBillingMonth(java.time.LocalDate.now());
+      bill.setDueDate(dueDate);
+      bill.setTotalAmount(amount);
+      bill.setOutstandingAmount(amount);
+      bill.setPaidAmount(java.math.BigDecimal.ZERO);
+      bill.setStatus("PENDING");
+      bill.setCreatedBy(username);
+      bill.setUpdatedBy(username);
+
+      // Create item detail with custom bill type name
+      com.ssasm.entity.community.BillItem item = new com.ssasm.entity.community.BillItem();
+      item.setBill(bill);
+      item.setName(billTypeName);
+      item.setDescription(request.getDescription() != null && !request.getDescription().isBlank()
+          ? request.getDescription().trim()
+          : "Society charges: " + billTypeName);
+      item.setAmount(amount);
+      item.setCreatedBy(username);
+      item.setUpdatedBy(username);
+      bill.getItems().add(item);
+
+      MaintenanceBill saved = maintenanceBillRepository.save(bill);
+      generatedList.add(communityMapper.toMaintenanceBillResponse(saved));
+    }
+
+    domainAuditService.log(buildEvent(username, ipAddress, "GENERATE_BILLS", "MaintenanceBill",
+        "ALL_" + residents.size(), "SUCCESS", "Generated " + billTypeName + " bills for " + residents.size() + " residents"));
+
+    return generatedList;
+  }
+
+  @Override
   public MaintenanceBillResponse createMaintenanceBill(Long residentId, String username, String ipAddress) {
     Resident resident = findResident(residentId);
     MaintenanceBill bill = new MaintenanceBill();
@@ -261,8 +316,22 @@ public class CommunityServiceImpl implements CommunityService {
     bill.setBillNumber("MB-" + System.currentTimeMillis());
     bill.setBillingMonth(LocalDateTime.now().toLocalDate());
     bill.setDueDate(LocalDateTime.now().plusMonths(1).toLocalDate());
+    bill.setTotalAmount(new java.math.BigDecimal("2500.00"));
+    bill.setOutstandingAmount(new java.math.BigDecimal("2500.00"));
+    bill.setPaidAmount(java.math.BigDecimal.ZERO);
+    bill.setStatus("PENDING");
     bill.setCreatedBy(username);
     bill.setUpdatedBy(username);
+
+    com.ssasm.entity.community.BillItem item = new com.ssasm.entity.community.BillItem();
+    item.setBill(bill);
+    item.setName("Monthly Society Maintenance");
+    item.setDescription("Standard monthly society maintenance charges");
+    item.setAmount(new java.math.BigDecimal("2500.00"));
+    item.setCreatedBy(username);
+    item.setUpdatedBy(username);
+    bill.getItems().add(item);
+
     MaintenanceBill saved = maintenanceBillRepository.save(bill);
     domainAuditService.log(buildEvent(username, ipAddress, "CREATE", "MaintenanceBill", saved.getId().toString(), "SUCCESS", "Maintenance bill created"));
     return communityMapper.toMaintenanceBillResponse(saved);
@@ -270,9 +339,52 @@ public class CommunityServiceImpl implements CommunityService {
 
   @Override
   @Transactional(readOnly = true)
-  public PageResponse<MaintenanceBillResponse> listMaintenanceBills(int page, int size, String sortBy, String sortDirection) {
-    Page<MaintenanceBill> result = maintenanceBillRepository.findByDeletedFalse(PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
+  public PageResponse<MaintenanceBillResponse> listMaintenanceBills(
+      int page, int size, String sortBy, String sortDirection, String username, String role) {
+    Page<MaintenanceBill> result;
+
+    boolean isAdmin = role != null && (role.contains("ADMIN") || role.contains("STAFF"));
+    if (isAdmin) {
+      // Admins and Staff see all society bills
+      result = maintenanceBillRepository.findByDeletedFalse(PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
+    } else {
+      // Residents ONLY see their own bills
+      Resident resident = null;
+      if (username != null && !username.isBlank()) {
+        resident = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(username).orElse(null);
+      }
+      if (resident != null) {
+        result = maintenanceBillRepository.findByResidentIdAndDeletedFalse(
+            resident.getId(), PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
+      } else {
+        result = Page.empty(PageRequest.of(page, size));
+      }
+    }
     return PageResponseUtil.fromPage(result.map(communityMapper::toMaintenanceBillResponse), sortBy, sortDirection);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public PageResponse<com.ssasm.dto.community.PaymentResponse> listPayments(
+      int page, int size, String sortBy, String sortDirection, String username, String role) {
+    Page<com.ssasm.entity.community.Payment> result;
+
+    boolean isAdmin = role != null && (role.contains("ADMIN") || role.contains("STAFF"));
+    if (isAdmin) {
+      result = paymentRepository.findByDeletedFalse(PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
+    } else {
+      Resident resident = null;
+      if (username != null && !username.isBlank()) {
+        resident = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(username).orElse(null);
+      }
+      if (resident != null) {
+        result = paymentRepository.findByResidentIdAndDeletedFalse(
+            resident.getId(), PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
+      } else {
+        result = Page.empty(PageRequest.of(page, size));
+      }
+    }
+    return PageResponseUtil.fromPage(result.map(communityMapper::toPaymentResponse), sortBy, sortDirection);
   }
 
   @Override

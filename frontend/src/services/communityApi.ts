@@ -67,12 +67,20 @@ export const billingApi = {
     const res = await httpClient.get<ApiResponse<PageResponse<MaintenanceBill>>>(`/community/maintenance-bills?page=${page}&size=${size}`);
     return res.data;
   },
+  generateSocietyBills: async (data: { billType: string; amount: number; description?: string; dueDate?: string }): Promise<ApiResponse<MaintenanceBill[]>> => {
+    const res = await httpClient.post<ApiResponse<MaintenanceBill[]>>('/community/maintenance-bills/generate-all', data);
+    return res.data;
+  },
   createBill: async (residentId: number): Promise<ApiResponse<MaintenanceBill>> => {
     const res = await httpClient.post<ApiResponse<MaintenanceBill>>(`/community/maintenance-bills/${residentId}`);
     return res.data;
   },
   processPayment: async (data: PaymentRequest): Promise<ApiResponse<PaymentResponse>> => {
     const res = await httpClient.post<ApiResponse<PaymentResponse>>('/community/payments', data);
+    return res.data;
+  },
+  getPayments: async (page = 0, size = 10): Promise<ApiResponse<PageResponse<PaymentResponse>>> => {
+    const res = await httpClient.get<ApiResponse<PageResponse<PaymentResponse>>>(`/community/payments?page=${page}&size=${size}`);
     return res.data;
   },
 };

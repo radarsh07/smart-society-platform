@@ -120,6 +120,17 @@ public class CommunityController {
     return ResponseEntity.ok(ResponseUtil.success("Staff fetched successfully", communityService.listStaff(page, size, sortBy, sortDirection)));
   }
 
+  @PostMapping("/maintenance-bills/generate-all")
+  @SocietyAdminOnly
+  public ResponseEntity<ApiResponse<java.util.List<MaintenanceBillResponse>>> generateBillsForAllResidents(
+      @Valid @RequestBody com.ssasm.dto.community.GenerateSocietyBillsRequest request,
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest httpServletRequest) {
+    java.util.List<MaintenanceBillResponse> response = communityService.generateBillsForAllResidents(
+        request, principal.getUsername(), httpServletRequest.getRemoteAddr());
+    return ResponseEntity.ok(ResponseUtil.success("Maintenance bills generated for all society residents successfully", response));
+  }
+
   @PostMapping("/maintenance-bills/{residentId}")
   @SocietyAdminOnly
   public ResponseEntity<ApiResponse<MaintenanceBillResponse>> createMaintenanceBill(
@@ -131,21 +142,45 @@ public class CommunityController {
   }
 
   @GetMapping("/maintenance-bills")
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SOCIETY_ADMIN', 'ROLE_RESIDENT', 'ROLE_SOCIETY_STAFF')")
   public ResponseEntity<ApiResponse<PageResponse<MaintenanceBillResponse>>> listMaintenanceBills(
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "10") int size,
       @RequestParam(defaultValue = "createdAt") String sortBy,
-      @RequestParam(defaultValue = "DESC") String sortDirection) {
-    return ResponseEntity.ok(ResponseUtil.success("Maintenance bills fetched successfully", communityService.listMaintenanceBills(page, size, sortBy, sortDirection)));
+      @RequestParam(defaultValue = "DESC") String sortDirection,
+      @AuthenticationPrincipal UserPrincipal principal) {
+    String username = principal != null ? principal.getUsername() : null;
+    String role = principal != null && principal.getAuthorities() != null && !principal.getAuthorities().isEmpty()
+        ? principal.getAuthorities().iterator().next().getAuthority()
+        : "ROLE_RESIDENT";
+    return ResponseEntity.ok(ResponseUtil.success("Maintenance bills fetched successfully",
+        communityService.listMaintenanceBills(page, size, sortBy, sortDirection, username, role)));
   }
 
   @PostMapping("/payments")
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SOCIETY_ADMIN', 'ROLE_RESIDENT')")
   public ResponseEntity<ApiResponse<com.ssasm.dto.community.PaymentResponse>> processPayment(
       @Valid @RequestBody com.ssasm.dto.community.PaymentRequest request,
       @AuthenticationPrincipal UserPrincipal principal,
       HttpServletRequest httpServletRequest) {
     com.ssasm.dto.community.PaymentResponse response = communityService.processPayment(request, principal.getUsername(), httpServletRequest.getRemoteAddr());
     return ResponseEntity.ok(ResponseUtil.success("Payment processed successfully", response));
+  }
+
+  @GetMapping("/payments")
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SOCIETY_ADMIN', 'ROLE_RESIDENT')")
+  public ResponseEntity<ApiResponse<PageResponse<com.ssasm.dto.community.PaymentResponse>>> listPayments(
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(defaultValue = "paymentDate") String sortBy,
+      @RequestParam(defaultValue = "DESC") String sortDirection,
+      @AuthenticationPrincipal UserPrincipal principal) {
+    String username = principal != null ? principal.getUsername() : null;
+    String role = principal != null && principal.getAuthorities() != null && !principal.getAuthorities().isEmpty()
+        ? principal.getAuthorities().iterator().next().getAuthority()
+        : "ROLE_RESIDENT";
+    return ResponseEntity.ok(ResponseUtil.success("Payment history fetched successfully",
+        communityService.listPayments(page, size, sortBy, sortDirection, username, role)));
   }
 
   @PostMapping("/vehicles")
