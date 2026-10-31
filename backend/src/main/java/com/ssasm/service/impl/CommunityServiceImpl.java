@@ -369,15 +369,13 @@ public class CommunityServiceImpl implements CommunityService {
       // Admins and Staff see all society bills
       result = maintenanceBillRepository.findByDeletedFalse(PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
     } else {
-      // Residents ONLY see their own bills
-      Resident resident = null;
-      if (username != null && !username.isBlank()) {
-        resident = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(username).orElse(null);
-      }
+      // Residents ONLY see their own bills: look up resident by username or email
+      Resident resident = resolveResidentForUser(username);
       if (resident != null) {
         result = maintenanceBillRepository.findByResidentIdAndDeletedFalse(
             resident.getId(), PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
       } else {
+        // Fallback: if username matches any resident full name or email
         result = Page.empty(PageRequest.of(page, size));
       }
     }
@@ -394,10 +392,7 @@ public class CommunityServiceImpl implements CommunityService {
     if (isAdmin) {
       result = paymentRepository.findByDeletedFalse(PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
     } else {
-      Resident resident = null;
-      if (username != null && !username.isBlank()) {
-        resident = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(username).orElse(null);
-      }
+      Resident resident = resolveResidentForUser(username);
       if (resident != null) {
         result = paymentRepository.findByResidentIdAndDeletedFalse(
             resident.getId(), PageRequest.of(page, size, PageResponseUtil.sort(sortBy, sortDirection)));
@@ -406,6 +401,32 @@ public class CommunityServiceImpl implements CommunityService {
       }
     }
     return PageResponseUtil.fromPage(result.map(communityMapper::toPaymentResponse), sortBy, sortDirection);
+  }
+
+  private Resident resolveResidentForUser(String username) {
+    if (username == null || username.isBlank()) {
+      return null;
+    }
+    String cleanUser = username.trim().toLowerCase();
+    // 1. By linked user.username
+    java.util.Optional<Resident> res = residentRepository.findByUserUsernameIgnoreCaseAndDeletedFalse(cleanUser);
+    if (res.isPresent()) {
+      return res.get();
+    }
+    // 2. By email match
+    java.util.List<Resident> all = residentRepository.findByDeletedFalse();
+    for (Resident r : all) {
+      if (r.getEmail() != null && r.getEmail().equalsIgnoreCase(cleanUser)) {
+        return r;
+      }
+      if (r.getFullName() != null && r.getFullName().equalsIgnoreCase(cleanUser)) {
+        return r;
+      }
+      if (r.getUser() != null && r.getUser().getUsername() != null && r.getUser().getUsername().equalsIgnoreCase(cleanUser)) {
+        return r;
+      }
+    }
+    return null;
   }
 
   @Override

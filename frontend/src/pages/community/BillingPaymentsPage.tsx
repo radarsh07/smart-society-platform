@@ -352,12 +352,18 @@ export function BillingPaymentsPage() {
                         </button>
                       )}
 
-                      <button
-                        onClick={() => setPayingBill(bill)}
-                        className="rounded-2xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition-all shadow-md flex items-center gap-1.5"
-                      >
-                        <span>💳</span> Pay Dues
-                      </button>
+                      {!isAdmin ? (
+                        <button
+                          onClick={() => setPayingBill(bill)}
+                          className="rounded-2xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition-all shadow-md flex items-center gap-1.5"
+                        >
+                          <span>💳</span> Pay Dues
+                        </button>
+                      ) : (
+                        <span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold text-amber-300">
+                          Pending Resident Payment
+                        </span>
+                      )}
                     </div>
                   </div>
                 </article>
