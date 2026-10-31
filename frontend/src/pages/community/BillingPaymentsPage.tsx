@@ -198,14 +198,35 @@ export function BillingPaymentsPage() {
           }
         />
 
-        {/* Generate Bill Button - ONLY VISIBLE TO SOCIETY ADMIN */}
+        {/* Admin Controls: Generate Bill & Clear Bills */}
         {isAdmin && (
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="self-start rounded-2xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-300 transition-all shadow-lg hover:shadow-cyan-500/20 sm:self-auto text-xs flex items-center gap-2"
-          >
-            <span>📜</span> + Generate Bill (All Residents)
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {bills.length > 0 && (
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to delete ALL generated maintenance bills from the admin panel?")) {
+                    try {
+                      await billingApi.clearAllBills();
+                      pushToast({ type: 'success', title: 'All Bills Cleared', description: 'Removed all generated maintenance bills from the system.' });
+                      await loadData();
+                    } catch {
+                      pushToast({ type: 'error', title: 'Failed to clear bills' });
+                    }
+                  }
+                }}
+                className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 font-bold text-rose-300 hover:bg-rose-500/20 transition-all text-xs flex items-center gap-1.5"
+              >
+                <span>🗑️</span> Remove All Bills
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowGenerateModal(true)}
+              className="rounded-2xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-300 transition-all shadow-lg hover:shadow-cyan-500/20 text-xs flex items-center gap-2"
+            >
+              <span>📜</span> + Generate Bill (All Residents)
+            </button>
+          </div>
         )}
       </div>
 
@@ -304,18 +325,40 @@ export function BillingPaymentsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                  <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
                     <div className="text-xs text-slate-400">
                       <span>Due: </span>
                       <span className="text-amber-300 font-semibold">{bill.dueDate}</span>
                     </div>
 
-                    <button
-                      onClick={() => setPayingBill(bill)}
-                      className="rounded-2xl bg-emerald-400 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition-all shadow-md flex items-center gap-1.5"
-                    >
-                      <span>💳</span> Pay Dues (Razorpay)
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Delete bill ${bill.billNumber} for ${bill.residentName}?`)) {
+                              try {
+                                await billingApi.deleteBill(bill.id);
+                                pushToast({ type: 'success', title: 'Bill Removed', description: `${bill.billNumber} deleted.` });
+                                await loadData();
+                              } catch {
+                                pushToast({ type: 'error', title: 'Failed to delete bill' });
+                              }
+                            }
+                          }}
+                          className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-2.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20 transition-all"
+                          title="Delete Bill"
+                        >
+                          🗑️
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => setPayingBill(bill)}
+                        className="rounded-2xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition-all shadow-md flex items-center gap-1.5"
+                      >
+                        <span>💳</span> Pay Dues
+                      </button>
+                    </div>
                   </div>
                 </article>
               );

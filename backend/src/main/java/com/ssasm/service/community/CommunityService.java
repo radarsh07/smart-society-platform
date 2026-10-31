@@ -40,6 +40,10 @@ public interface CommunityService {
 
   java.util.List<MaintenanceBillResponse> generateBillsForAllResidents(GenerateSocietyBillsRequest request, String username, String ipAddress);
 
+  void deleteBill(Long billId, String username, String ipAddress);
+
+  void clearAllBills(String username, String ipAddress);
+
   PageResponse<MaintenanceBillResponse> listMaintenanceBills(int page, int size, String sortBy, String sortDirection, String username, String role);
 
   PageResponse<PaymentResponse> listPayments(int page, int size, String sortBy, String sortDirection, String username, String role);

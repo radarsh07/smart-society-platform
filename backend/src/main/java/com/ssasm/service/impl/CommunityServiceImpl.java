@@ -338,6 +338,27 @@ public class CommunityServiceImpl implements CommunityService {
   }
 
   @Override
+  public void deleteBill(Long billId, String username, String ipAddress) {
+    MaintenanceBill bill = maintenanceBillRepository.findById(billId)
+        .orElseThrow(() -> new ResourceNotFoundException("Maintenance bill not found"));
+    bill.setDeleted(true);
+    bill.setUpdatedBy(username);
+    maintenanceBillRepository.save(bill);
+    domainAuditService.log(buildEvent(username, ipAddress, "DELETE", "MaintenanceBill", billId.toString(), "SUCCESS", "Bill deleted"));
+  }
+
+  @Override
+  public void clearAllBills(String username, String ipAddress) {
+    java.util.List<MaintenanceBill> bills = maintenanceBillRepository.findAll();
+    for (MaintenanceBill b : bills) {
+      b.setDeleted(true);
+      b.setUpdatedBy(username);
+      maintenanceBillRepository.save(b);
+    }
+    domainAuditService.log(buildEvent(username, ipAddress, "CLEAR_ALL", "MaintenanceBill", "ALL", "SUCCESS", "Cleared all maintenance bills"));
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public PageResponse<MaintenanceBillResponse> listMaintenanceBills(
       int page, int size, String sortBy, String sortDirection, String username, String role) {

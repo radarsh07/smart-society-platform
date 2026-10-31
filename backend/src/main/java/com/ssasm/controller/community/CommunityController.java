@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -139,6 +140,25 @@ public class CommunityController {
       HttpServletRequest httpServletRequest) {
     MaintenanceBillResponse response = communityService.createMaintenanceBill(residentId, principal.getUsername(), httpServletRequest.getRemoteAddr());
     return ResponseEntity.ok(ResponseUtil.success("Maintenance bill created successfully", response));
+  }
+
+  @DeleteMapping("/maintenance-bills/{id}")
+  @SocietyAdminOnly
+  public ResponseEntity<ApiResponse<Void>> deleteBill(
+      @PathVariable Long id,
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest httpServletRequest) {
+    communityService.deleteBill(id, principal.getUsername(), httpServletRequest.getRemoteAddr());
+    return ResponseEntity.ok(ResponseUtil.success("Bill deleted successfully", null));
+  }
+
+  @DeleteMapping("/maintenance-bills/clear-all")
+  @SocietyAdminOnly
+  public ResponseEntity<ApiResponse<Void>> clearAllBills(
+      @AuthenticationPrincipal UserPrincipal principal,
+      HttpServletRequest httpServletRequest) {
+    communityService.clearAllBills(principal.getUsername(), httpServletRequest.getRemoteAddr());
+    return ResponseEntity.ok(ResponseUtil.success("All society maintenance bills cleared successfully", null));
   }
 
   @GetMapping("/maintenance-bills")

@@ -75,6 +75,14 @@ export const billingApi = {
     const res = await httpClient.post<ApiResponse<MaintenanceBill>>(`/community/maintenance-bills/${residentId}`);
     return res.data;
   },
+  deleteBill: async (id: number): Promise<ApiResponse<void>> => {
+    const res = await httpClient.delete<ApiResponse<void>>(`/community/maintenance-bills/${id}`);
+    return res.data;
+  },
+  clearAllBills: async (): Promise<ApiResponse<void>> => {
+    const res = await httpClient.delete<ApiResponse<void>>('/community/maintenance-bills/clear-all');
+    return res.data;
+  },
   processPayment: async (data: PaymentRequest): Promise<ApiResponse<PaymentResponse>> => {
     const res = await httpClient.post<ApiResponse<PaymentResponse>>('/community/payments', data);
     return res.data;
